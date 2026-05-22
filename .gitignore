@@ -1,0 +1,15 @@
+# Credenciales — nunca versionar
+config/database.php
+
+# Uploads generados por usuarios
+uploads/reembolsos/*
+!uploads/reembolsos/.gitkeep
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+*.log
+
+# Editor
+.vscode/
+.idea/
