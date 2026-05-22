@@ -19,6 +19,16 @@ function requiereLogin(): void {
         exit;
     }
     sincronizarAfiliado();
+
+    // Afiliados con vigencia vencida solo pueden ver vigencia_vencida.php
+    if (($_SESSION['usuario_rol'] ?? '') === 'afiliado'
+        && !($_SESSION['vigencia_activa'] ?? true)
+        && !str_ends_with($_SERVER['SCRIPT_NAME'] ?? '', 'vigencia_vencida.php')
+        && !str_ends_with($_SERVER['SCRIPT_NAME'] ?? '', 'logout.php')
+    ) {
+        header('Location: ' . url('vigencia_vencida.php'));
+        exit;
+    }
 }
 
 // ── Sincronizar id_afiliado en sesión Y en BD ──────────────
