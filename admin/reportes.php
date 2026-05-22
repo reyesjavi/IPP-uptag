@@ -7,6 +7,79 @@ require_once __DIR__ . '/../includes/auth.php';
 requiereRol('admin','administrativo');
 $pdo = getDB();
 
+// ── Exportación CSV ───────────────────────────────────────────
+if (!empty($_GET['export']) && $_GET['export'] === 'csv') {
+    $tipo = $_GET['tipo'] ?? 'reembolsos';
+
+    $exportes = [
+        'reembolsos' => [
+            'filename' => 'reembolsos_' . date('Ymd') . '.csv',
+            'sql'      => "SELECT r.id_reembolso AS 'ID', a.ci AS 'Cédula',
+                                  CONCAT(a.nombre,' ',a.apellido) AS 'Afiliado',
+                                  r.tipo_servicio AS 'Tipo', r.fecha_atencion AS 'Fecha Atención',
+                                  r.monto_solicitado AS 'Monto Solicitado',
+                                  COALESCE(r.monto_aprobado,'') AS 'Monto Aprobado',
+                                  r.estado AS 'Estado', r.fecha_solicitud AS 'Fecha Solicitud'
+                           FROM reembolso r
+                           JOIN afiliado a ON a.id_afiliado = r.id_afiliado
+                           ORDER BY r.fecha_solicitud DESC",
+        ],
+        'afiliados' => [
+            'filename' => 'afiliados_' . date('Ymd') . '.csv',
+            'sql'      => "SELECT a.id_afiliado AS 'ID', a.ci AS 'Cédula',
+                                  a.nombre AS 'Nombre', a.apellido AS 'Apellido',
+                                  a.correo AS 'Correo', a.telefono AS 'Teléfono',
+                                  a.cod_pm AS 'Plan', a.activo AS 'Activo',
+                                  a.fecha_ingreso AS 'Fecha Ingreso'
+                           FROM afiliado a ORDER BY a.apellido",
+        ],
+        'retiros' => [
+            'filename' => 'retiros_' . date('Ymd') . '.csv',
+            'sql'      => "SELECT sr.id_retiro AS 'ID', a.ci AS 'Cédula',
+                                  CONCAT(a.nombre,' ',a.apellido) AS 'Afiliado',
+                                  sr.tipo_retiro AS 'Tipo', sr.monto AS 'Monto',
+                                  sr.motivo AS 'Motivo', sr.estado AS 'Estado',
+                                  sr.fecha_solicitud AS 'Fecha Solicitud'
+                           FROM solicitud_retiro sr
+                           JOIN afiliado a ON a.id_afiliado = sr.id_afiliado
+                           ORDER BY sr.fecha_solicitud DESC",
+        ],
+        'avales' => [
+            'filename' => 'avales_' . date('Ymd') . '.csv',
+            'sql'      => "SELECT ca.id_aval AS 'ID', a.ci AS 'Cédula',
+                                  CONCAT(a.nombre,' ',a.apellido) AS 'Afiliado',
+                                  ca.medico_tratante AS 'Médico', ca.especialidad AS 'Especialidad',
+                                  ca.centro_medico AS 'Centro', ca.procedimiento AS 'Procedimiento',
+                                  ca.monto_estimado AS 'Monto Estimado', ca.estado AS 'Estado',
+                                  ca.fecha_solicitud AS 'Fecha Solicitud'
+                           FROM carta_aval ca
+                           JOIN afiliado a ON a.id_afiliado = ca.id_afiliado
+                           ORDER BY ca.fecha_solicitud DESC",
+        ],
+    ];
+
+    if (!isset($exportes[$tipo])) {
+        http_response_code(400); exit('Tipo de exportación no válido.');
+    }
+
+    $cfg  = $exportes[$tipo];
+    $rows = $pdo->query($cfg['sql'])->fetchAll(PDO::FETCH_ASSOC);
+
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="' . $cfg['filename'] . '"');
+    header('Pragma: no-cache');
+    // BOM UTF-8 para Excel
+    echo "\xEF\xBB\xBF";
+
+    $out = fopen('php://output', 'w');
+    if (!empty($rows)) {
+        fputcsv($out, array_keys($rows[0]));
+        foreach ($rows as $row) fputcsv($out, $row);
+    }
+    fclose($out);
+    exit;
+}
+
 // ── Reembolsos por estado ──
 $reembEstado = $pdo->query("
     SELECT estado, COUNT(*) AS total, COALESCE(SUM(monto_solicitado),0) AS monto
@@ -113,6 +186,25 @@ require_once __DIR__ . '/header.php';
     <span class="bar-val"><?= $p['total'] ?></span>
   </div>
   <?php endforeach; endif; ?>
+</div>
+
+<!-- Exportar CSV -->
+<div class="report-box" style="margin-top:1.2rem">
+  <h3 style="margin-bottom:.75rem">Exportar datos</h3>
+  <div style="display:flex;flex-wrap:wrap;gap:.6rem">
+    <a href="<?= url('admin/reportes.php') ?>?export=csv&tipo=reembolsos" class="btn btn-teal">
+      <i class="ti ti-table-export"></i> Reembolsos CSV
+    </a>
+    <a href="<?= url('admin/reportes.php') ?>?export=csv&tipo=afiliados" class="btn btn-teal">
+      <i class="ti ti-table-export"></i> Afiliados CSV
+    </a>
+    <a href="<?= url('admin/reportes.php') ?>?export=csv&tipo=avales" class="btn btn-teal">
+      <i class="ti ti-table-export"></i> Avales CSV
+    </a>
+    <a href="<?= url('admin/reportes.php') ?>?export=csv&tipo=retiros" class="btn btn-teal">
+      <i class="ti ti-table-export"></i> Retiros CSV
+    </a>
+  </div>
 </div>
 
 <?php require_once __DIR__ . '/footer.php'; ?>

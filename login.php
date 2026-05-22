@@ -1,25 +1,91 @@
 <?php
 require_once __DIR__ . '/config/base.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/lib/totp.php';
 
 if (estaAutenticado()) { redirigirSegunRol(); }
 
+$paso  = $_GET['paso'] ?? 'login';
 $error = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+// ── Paso 2FA: verificar código TOTP ──────────────────────────
+if ($paso === '2fa' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     verificarCsrf();
-    $ci       = trim($_POST['ci']       ?? '');
+    $pendiente = $_SESSION['2fa_pendiente'] ?? null;
+
+    if (!$pendiente || $pendiente['expira'] < time()) {
+        unset($_SESSION['2fa_pendiente']);
+        $error = 'La sesión de verificación expiró. Inicia sesión de nuevo.';
+        $paso  = 'login';
+    } else {
+        $codigo = preg_replace('/\D/', '', $_POST['codigo_totp'] ?? '');
+        if (TOTP::verify($pendiente['secret'], $codigo)) {
+            unset($_SESSION['2fa_pendiente']);
+            $u = $pendiente['usuario'];
+
+            // Completar la sesión igual que en login() normal
+            session_regenerate_id(true);
+            $_SESSION['usuario_id']      = $u['id_usuario'];
+            $_SESSION['usuario_ci']      = $u['username'];
+            $_SESSION['usuario_rol']     = $u['rol'];
+            $_SESSION['afiliado_id']     = $u['id_afiliado'];
+            $_SESSION['afiliado_nombre'] = trim(($u['nombre'] ?? '') . ' ' . ($u['apellido'] ?? ''));
+            $_SESSION['afiliado_cod_pm'] = $u['cod_pm'];
+            $_SESSION['vigencia_activa'] = $pendiente['vigencia_activa'];
+
+            $pdo = getDB();
+            $pdo->prepare("UPDATE usuarios_registrados SET ultimo_acceso=NOW() WHERE id_usuario=:id")
+                ->execute([':id' => $u['id_usuario']]);
+            registrarLog('login_2fa', 'Inicio de sesión con 2FA', $u['id_usuario']);
+
+            redirigirSegunRol();
+        } else {
+            $error = 'Código incorrecto o expirado. Intenta de nuevo.';
+        }
+    }
+}
+
+// ── Paso login: verificar credenciales ───────────────────────
+if ($paso === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    verificarCsrf();
+    $ci       = trim($_POST['ci'] ?? '');
     $password = trim($_POST['password'] ?? '');
+    if (ctype_digit($ci)) $ci = 'V-' . $ci;
+
     if (empty($ci) || empty($password)) {
         $error = 'Por favor completa todos los campos.';
     } else {
         $resultado = login($ci, $password);
         if ($resultado['ok']) {
+            if (!empty($resultado['2fa_requerido'])) {
+                $u = $resultado['usuario'];
+                // Calcular vigencia para guardar junto con los datos pendientes
+                $pdo = getDB();
+                $vig = $pdo->prepare("
+                    SELECT v.estado FROM vigencia_anual v
+                    JOIN agremiado ag ON ag.id_agremiado = v.id_agremiado
+                    WHERE ag.ci = :ci AND v.anio = YEAR(CURDATE()) AND v.estado = 'activa' LIMIT 1
+                ");
+                $vig->execute([':ci' => $u['username']]);
+                $_SESSION['2fa_pendiente'] = [
+                    'usuario'       => $u,
+                    'secret'        => $u['totp_secret'],
+                    'vigencia_activa' => (bool) $vig->fetch(),
+                    'expira'        => time() + 300,
+                ];
+                header('Location: ' . url('login.php') . '?paso=2fa');
+                exit;
+            }
             redirigirSegunRol();
         } else {
             $error = $resultado['msg'];
         }
     }
 }
+// Para re-llenar el campo de display tras un error
+$ciPost    = trim($_POST['ci'] ?? '');
+$ciDisplay = preg_match('/^V?-?(\d+)$/i', $ciPost, $m) ? $m[1] : $ciPost;
+$ciIsCI    = ($ciDisplay === '' || ctype_digit($ciDisplay));
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -46,32 +112,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
   </div>
   <div class="login-right">
-    <h2>Iniciar Sesión</h2>
-    <p>Accede con tu cédula o correo institucional</p>
-    <?php if ($error): ?>
-      <div class="flash-msg flash-err"><i class="ti ti-alert-circle"></i> <?= htmlspecialchars($error) ?></div>
+    <?php if ($paso === '2fa'): ?>
+      <h2>Verificación en dos pasos</h2>
+      <p>Ingresa el código de 6 dígitos de tu aplicación autenticadora</p>
+      <?php if ($error): ?>
+        <div class="flash-msg flash-err"><i class="ti ti-alert-circle"></i> <?= htmlspecialchars($error) ?></div>
+      <?php endif; ?>
+      <form method="POST" action="<?= url('login.php') ?>?paso=2fa">
+        <?= campoCsrf() ?>
+        <div class="form-group">
+          <label>Código TOTP</label>
+          <input type="text" name="codigo_totp" inputmode="numeric" maxlength="6"
+                 placeholder="000000" required autofocus autocomplete="one-time-code"
+                 style="font-size:22px;letter-spacing:6px;text-align:center;font-weight:700" />
+        </div>
+        <button type="submit" class="btn-primary"><i class="ti ti-shield-check"></i> Verificar código</button>
+      </form>
+      <div class="login-links" style="margin-top:1rem">
+        <a href="<?= url('login.php') ?>" class="btn-link" style="font-size:13px">
+          <i class="ti ti-arrow-left"></i> Volver al inicio de sesión
+        </a>
+      </div>
+    <?php else: ?>
+      <h2>Iniciar Sesión</h2>
+      <p>Accede con tu cédula o correo institucional</p>
+      <?php if ($error): ?>
+        <div class="flash-msg flash-err"><i class="ti ti-alert-circle"></i> <?= htmlspecialchars($error) ?></div>
+      <?php endif; ?>
+      <form method="POST" action="<?= url('login.php') ?>">
+        <?= campoCsrf() ?>
+        <div class="form-group">
+          <label>Cédula / Usuario</label>
+          <div class="ci-group" id="ciGroup">
+            <span class="ci-prefix" id="ciPrefix"<?= !$ciIsCI ? ' style="display:none"' : '' ?>>V-</span>
+            <input type="text" id="ciInput" inputmode="numeric"
+                   placeholder="12345678" autocomplete="username"
+                   value="<?= htmlspecialchars($ciDisplay) ?>" required autofocus />
+          </div>
+          <input type="hidden" name="ci" id="ciHidden" value="<?= htmlspecialchars($ciPost) ?>" />
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" name="password" placeholder="••••••••" required/>
+        </div>
+        <button type="submit" class="btn-primary">Entrar al Portal</button>
+      </form>
+      <div class="login-links">
+        <a href="<?= url('registro.php') ?>" class="btn-link">¿Eres agremiado y no tienes cuenta? Regístrate</a>
+        <br>
+        <a class="btn-link" href="<?= url('recuperar_password.php') ?>">¿Olvidaste tu contraseña?</a>
+      </div>
     <?php endif; ?>
-    <form method="POST" action="<?= url('login.php') ?>">
-      <?= campoCsrf() ?>
-      <div class="form-group">
-        <label>Cédula / Usuario</label>
-        <input type="text" name="ci" placeholder="V-12345678 o correo" value="<?= htmlspecialchars($_POST['ci']??'') ?>" required autofocus/>
-      </div>
-      <div class="form-group">
-        <label>Contraseña</label>
-        <input type="password" name="password" placeholder="••••••••" required/>
-      </div>
-      <button type="submit" class="btn-primary">Entrar al Portal</button>
-    </form>
-    <div class="login-links">
-      <a href="<?= url('registro.php') ?>" class="btn-link">¿Eres agremiado y no tienes cuenta? Regístrate</a>
-      <br>
-      <a class="btn-link" href="<?= url('recuperar_password.php') ?>">
-        ¿Olvidaste tu contraseña?
-      </button>
-    </div>
   </div>
 </div>
 <script src="<?= url('assets/js/app.js') ?>"></script>
+<script>
+(function () {
+  const input  = document.getElementById('ciInput');
+  const hidden = document.getElementById('ciHidden');
+  const prefix = document.getElementById('ciPrefix');
+
+  input.addEventListener('input', function () {
+    const val = this.value;
+    if (/[^0-9]/.test(val)) {
+      // Contiene letras → modo usuario/admin: ocultar prefijo
+      prefix.style.display = 'none';
+    } else {
+      // Solo dígitos → modo cédula: filtrar y mostrar prefijo
+      this.value = val.replace(/\D/g, '');
+      prefix.style.display = '';
+    }
+    hidden.value = this.value;
+  });
+
+  document.querySelector('form').addEventListener('submit', function () {
+    const val = input.value.trim();
+    // Si son solo dígitos, el PHP se encarga de agregar "V-"
+    hidden.value = val;
+  });
+})();
+</script>
 </body>
 </html>

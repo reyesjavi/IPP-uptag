@@ -1,25 +1,16 @@
 <?php
-// directorio.php
 $pageTitle = 'Directorio Médico';
 $activeNav = 'directorio';
 require_once __DIR__ . '/config/base.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/models/MedicoModel.php';
 requiereLogin();
-$pdo = getDB();
 
-// Buscar médicos desde la BD
+$model    = new MedicoModel();
 $busqueda = trim($_GET['q'] ?? '');
-$filtro   = $_GET['filtro'] ?? 'todos';
 
-$sql  = "SELECT m.*, s.tipo_servicio FROM medico m LEFT JOIN servicio s ON s.id_servicio = m.id_servicio WHERE 1=1";
-$params = [];
-if ($busqueda) {
-    $sql .= " AND (m.nombre LIKE :q OR m.apellido LIKE :q OR m.especialidad LIKE :q)";
-    $params[':q'] = "%$busqueda%";
-}
-$stmt = $pdo->prepare($sql . " ORDER BY m.apellido LIMIT 30");
-$stmt->execute($params);
-$medicos = $stmt->fetchAll();
+$medicos = $model->buscarConServicio($busqueda);
+$centros = $model->getCentros();
 
 require_once __DIR__ . '/includes/header.php';
 ?>
@@ -45,19 +36,19 @@ require_once __DIR__ . '/includes/header.php';
     </div>
   </form>
 
-  <!-- Médicos de la BD -->
+  <!-- Especialistas -->
   <?php if (!empty($medicos)): ?>
-  <div class="sc">
-    <h3>Especialistas registrados <?= $busqueda ? '— resultados para "'.htmlspecialchars($busqueda).'"' : '' ?></h3>
+  <div class="sc" style="margin-bottom:1.5rem">
+    <h3>Especialistas<?= $busqueda ? ' — resultados para "' . htmlspecialchars($busqueda) . '"' : '' ?></h3>
     <div class="tbl-wrap">
       <table>
         <thead><tr><th>Nombre</th><th>Especialidad</th><th>Cédula</th><th>Contacto</th><th>Servicio</th></tr></thead>
         <tbody>
           <?php foreach ($medicos as $m): ?>
           <tr>
-            <td><?= htmlspecialchars('Dr(a). '.$m['nombre'].' '.$m['apellido']) ?></td>
-            <td><?= htmlspecialchars($m['especialidad']) ?></td>
-            <td><?= htmlspecialchars($m['cedula']) ?></td>
+            <td><?= htmlspecialchars('Dr(a). ' . $m['nombre'] . ' ' . $m['apellido']) ?></td>
+            <td><?= htmlspecialchars($m['especialidad'] ?? '—') ?></td>
+            <td><?= htmlspecialchars($m['cedula'] ?? '—') ?></td>
             <td><?= htmlspecialchars($m['numero_contacto'] ?? '—') ?></td>
             <td><?= htmlspecialchars($m['tipo_servicio'] ?? '—') ?></td>
           </tr>
@@ -66,43 +57,35 @@ require_once __DIR__ . '/includes/header.php';
       </table>
     </div>
   </div>
+  <?php elseif ($busqueda): ?>
+    <div class="sc" style="margin-bottom:1.5rem">
+      <p style="font-size:13px;color:var(--text-3)">No se encontraron especialistas para "<?= htmlspecialchars($busqueda) ?>".</p>
+    </div>
   <?php endif; ?>
 
-  <!-- Centros en convenio (estáticos / pre-cargados) -->
+  <!-- Centros en convenio -->
   <h3 style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:10px">Centros médicos en convenio</h3>
   <div class="dir-grid">
+    <?php if (!empty($centros)): foreach ($centros as $c): ?>
     <div class="dir-card">
-      <div class="dir-name">Policlínica Los Llanos</div>
-      <div class="dir-spec">Clínica General · Convenio Full</div>
-      <div class="dir-info"><i class="ti ti-map-pin"></i> Acarigua, Portuguesa</div>
-      <div class="dir-info"><i class="ti ti-phone"></i> 0255-621-0000</div>
-      <div class="dir-info"><i class="ti ti-clock"></i> Lun–Dom 24 horas</div>
+      <div class="dir-name"><?= htmlspecialchars($c['nombre'] . ' ' . $c['apellido']) ?></div>
+      <div class="dir-spec"><?= htmlspecialchars(($c['especialidad'] ?? '') . ($c['convenio'] ? ' · ' . $c['convenio'] : '')) ?></div>
+      <?php if ($c['direccion']): ?><div class="dir-info"><i class="ti ti-map-pin"></i> <?= htmlspecialchars($c['direccion']) ?></div><?php endif; ?>
+      <?php if ($c['numero_contacto']): ?><div class="dir-info"><i class="ti ti-phone"></i> <?= htmlspecialchars($c['numero_contacto']) ?></div><?php endif; ?>
+      <?php if ($c['horario']): ?><div class="dir-info"><i class="ti ti-clock"></i> <?= htmlspecialchars($c['horario']) ?></div><?php endif; ?>
       <span class="badge badge-green" style="margin-top:6px">Activo</span>
     </div>
-    <div class="dir-card">
-      <div class="dir-name">Farmacia UPTAG</div>
-      <div class="dir-spec">Farmacia · Descuento 30%</div>
-      <div class="dir-info"><i class="ti ti-map-pin"></i> Campus UPTAG, Acarigua</div>
-      <div class="dir-info"><i class="ti ti-phone"></i> 0255-621-0010</div>
-      <div class="dir-info"><i class="ti ti-clock"></i> Lun–Sáb 7am–7pm</div>
-      <span class="badge badge-green" style="margin-top:6px">Activo</span>
-    </div>
-    <div class="dir-card">
-      <div class="dir-name">Centro Odontológico UPTAG</div>
-      <div class="dir-spec">Dental · Plan incluido</div>
-      <div class="dir-info"><i class="ti ti-map-pin"></i> Campus UPTAG</div>
-      <div class="dir-info"><i class="ti ti-phone"></i> 0255-621-0020</div>
-      <div class="dir-info"><i class="ti ti-clock"></i> Lun–Vie 8am–4pm</div>
-      <span class="badge badge-green" style="margin-top:6px">Activo</span>
-    </div>
-    <div class="dir-card">
-      <div class="dir-name">Clínica Guanare</div>
-      <div class="dir-spec">Clínica · Convenio Parcial</div>
-      <div class="dir-info"><i class="ti ti-map-pin"></i> Guanare, Portuguesa</div>
-      <div class="dir-info"><i class="ti ti-phone"></i> 0257-251-0000</div>
-      <div class="dir-info"><i class="ti ti-clock"></i> Lun–Vie 7am–5pm</div>
-      <span class="badge badge-amber" style="margin-top:6px">Citas previas</span>
-    </div>
+    <?php endforeach; else: ?>
+      <!-- Fallback estático si la BD está vacía -->
+      <div class="dir-card">
+        <div class="dir-name">Policlínica Los Llanos</div>
+        <div class="dir-spec">Clínica General · Convenio Full</div>
+        <div class="dir-info"><i class="ti ti-map-pin"></i> Acarigua, Portuguesa</div>
+        <div class="dir-info"><i class="ti ti-phone"></i> 0255-621-0000</div>
+        <div class="dir-info"><i class="ti ti-clock"></i> Lun–Dom 24 horas</div>
+        <span class="badge badge-green" style="margin-top:6px">Activo</span>
+      </div>
+    <?php endif; ?>
   </div>
 </div>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

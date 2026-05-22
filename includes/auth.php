@@ -99,7 +99,7 @@ function login(string $ci, string $password): array {
     $pdo  = getDB();
     $stmt = $pdo->prepare("
         SELECT u.id_usuario, u.username, u.password_hash, u.rol, u.activo,
-               u.intentos_fallidos, u.bloqueado,
+               u.intentos_fallidos, u.bloqueado, u.totp_secret, u.totp_habilitado,
                a.id_afiliado, a.nombre, a.apellido, a.cod_pm, a.cod_a
         FROM usuarios_registrados u
         LEFT JOIN afiliado a ON a.id_afiliado = u.id_afiliado
@@ -156,6 +156,11 @@ function login(string $ci, string $password): array {
     // Resetear intentos fallidos al éxito
     $pdo->prepare("UPDATE usuarios_registrados SET intentos_fallidos=0, ultimo_acceso=NOW() WHERE id_usuario=:id")
         ->execute([':id'=>$usuario['id_usuario']]);
+
+    // Verificar si requiere 2FA
+    if (!empty($usuario['totp_habilitado']) && !empty($usuario['totp_secret'])) {
+        return ['ok' => true, '2fa_requerido' => true, 'usuario' => $usuario];
+    }
 
     // Prevenir Session Fixation
     session_regenerate_id(true);

@@ -62,10 +62,16 @@ unset($_SESSION['flash_admin']);
     <a href="<?= url('admin/usuarios.php') ?>" class="sidebar-link <?= ($activeAdmin??'')==='usuarios' ?'active':'' ?>">
       <i class="ti ti-user-cog"></i> Usuarios
     </a>
+    <a href="<?= url('admin/medicos.php') ?>" class="sidebar-link <?= ($activeAdmin??'')==='medicos' ?'active':'' ?>">
+      <i class="ti ti-stethoscope"></i> Directorio Médico
+    </a>
     <a href="<?= url('admin/logs.php') ?>" class="sidebar-link <?= ($activeAdmin??'')==='logs' ?'active':'' ?>">
       <i class="ti ti-list-details"></i> Logs
     </a>
     <?php endif; ?>
+    <a href="<?= url('admin/2fa_setup.php') ?>" class="sidebar-link <?= ($activeAdmin??'')==='2fa' ?'active':'' ?>">
+      <i class="ti ti-shield-lock"></i> Seguridad 2FA
+    </a>
   </nav>
 
   <div class="sidebar-footer">
