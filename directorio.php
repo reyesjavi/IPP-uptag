@@ -11,7 +11,7 @@ $pdo = getDB();
 $busqueda = trim($_GET['q'] ?? '');
 $filtro   = $_GET['filtro'] ?? 'todos';
 
-$sql  = "SELECT m.*, s.tipo_servicio FROM MEDICO m LEFT JOIN SERVICIO s ON s.id_servicio = m.id_servicio WHERE 1=1";
+$sql  = "SELECT m.*, s.tipo_servicio FROM medico m LEFT JOIN servicio s ON s.id_servicio = m.id_servicio WHERE 1=1";
 $params = [];
 if ($busqueda) {
     $sql .= " AND (m.nombre LIKE :q OR m.apellido LIKE :q OR m.especialidad LIKE :q)";

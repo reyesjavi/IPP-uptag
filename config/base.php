@@ -1,7 +1,27 @@
 <?php
 // config/base.php — Configuración base, rutas y seguridad
+require_once __DIR__ . '/env.php';
 
 define('BASE_PATH', __DIR__ . '/..');
+
+// Ruta del sistema de archivos donde se almacenan los uploads.
+// En producción, esta carpeta debe estar FUERA del webroot.
+if (!defined('UPLOAD_PATH')) {
+    $envUpload = getenv('UPLOAD_PATH');
+    define('UPLOAD_PATH', ($envUpload !== false && $envUpload !== '')
+        ? rtrim($envUpload, '/')
+        : __DIR__ . '/../uploads/reembolsos');
+}
+
+// Forzar HTTPS en producción
+if (getenv('APP_ENV') === 'production'
+    && empty($_SERVER['HTTPS'])
+    && ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') !== 'https'
+    && !headers_sent()
+) {
+    header('Location: https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'], true, 301);
+    exit;
+}
 
 // ── Detectar raíz del proyecto (funciona desde cualquier subcarpeta) ──
 function getRootUrl(): string {

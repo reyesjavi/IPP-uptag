@@ -1,5 +1,6 @@
 # Credenciales — nunca versionar
 config/database.php
+.env
 
 # Uploads generados por usuarios
 uploads/reembolsos/*

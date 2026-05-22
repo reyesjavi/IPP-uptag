@@ -50,9 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'reemb
             header('Location: ' . url('salud.php') . '?tab=reimb'); exit;
         }
 
-        // Crear carpeta de uploads si no existe
-        $carpeta = __DIR__ . '/uploads/reembolsos';
-        if (!is_dir($carpeta)) mkdir($carpeta, 0755, true);
+        $carpeta = UPLOAD_PATH;
+        if (!is_dir($carpeta)) mkdir($carpeta, 0750, true);
 
         // Nombre único: afiliado_fecha_random.ext
         $nombreArchivo = 'reemb_' . $afilId . '_' . date('YmdHis') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
@@ -235,7 +234,7 @@ require_once __DIR__ . '/includes/header.php';
         <div class="tbl-wrap">
           <table>
             <thead>
-              <tr><th>Nro.</th><th>Tipo</th><th>Monto Solicitado</th><th>Monto Aprobado</th><th>Fecha</th><th>Estado</th></tr>
+              <tr><th>Nro.</th><th>Tipo</th><th>Monto Solicitado</th><th>Monto Aprobado</th><th>Fecha</th><th>Estado</th><th>Adjunto</th></tr>
             </thead>
             <tbody>
               <?php foreach ($reembolsos as $r):
@@ -248,6 +247,12 @@ require_once __DIR__ . '/includes/header.php';
                 <td><?= $r['monto_aprobado'] ? 'Bs. '.number_format($r['monto_aprobado'],2,',','.') : '—' ?></td>
                 <td><?= date('d/m/Y', strtotime($r['fecha_solicitud'])) ?></td>
                 <td><span class="badge <?= $bCls ?>"><?= ucfirst($r['estado']) ?></span></td>
+                <td><?php if (!empty($r['archivo_adjunto'])): ?>
+                  <a href="<?= url('ver_archivo.php') ?>?file=<?= urlencode($r['archivo_adjunto']) ?>"
+                     target="_blank" style="font-size:12px;color:var(--primary)">
+                    <i class="ti ti-paperclip"></i> Ver
+                  </a>
+                <?php else: ?>—<?php endif; ?></td>
               </tr>
               <?php endforeach; ?>
             </tbody>
