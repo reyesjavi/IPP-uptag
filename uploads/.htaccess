@@ -1,0 +1,6 @@
+# Bloquear ejecución de scripts en uploads — solo archivos estáticos
+<FilesMatch "\.(php|phtml|php3|php4|php5|pl|py|cgi|sh)$">
+  Order deny,allow
+  Deny from all
+</FilesMatch>
+Options -ExecCGI

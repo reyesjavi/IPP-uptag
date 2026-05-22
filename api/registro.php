@@ -1,0 +1,210 @@
+<?php
+// api/registro.php — Registro directo si CI existe en agremiados
+define('API_REQUEST', true);
+require_once __DIR__ . '/../config/base.php';
+require_once __DIR__ . '/../config/database.php';
+
+header('Content-Type: application/json; charset=utf-8');
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['ok'=>false,'codigo'=>'METODO_NO_PERMITIDO','msg'=>'Solo se acepta POST.']);
+    exit;
+}
+
+$body = json_decode(file_get_contents('php://input'), true) ?: $_POST;
+
+$ci       = strtoupper(trim($body['ci']       ?? ''));
+$password = trim($body['password'] ?? '');
+$correo   = trim($body['correo']   ?? '');
+$telefono = trim($body['telefono'] ?? '');
+
+// ── Validación básica ──
+$errores = [];
+if (empty($ci))                 $errores[] = 'La cédula de identidad es obligatoria.';
+if (empty($password))           $errores[] = 'La contraseña es obligatoria.';
+if (strlen($password) < 16)      $errores[] = 'La contraseña debe tener al menos 16 caracteres.';
+if (!empty($correo) && !filter_var($correo, FILTER_VALIDATE_EMAIL))
+                                $errores[] = 'El correo electrónico no es válido.';
+if (!preg_match('/^[VEJ]-?\d{6,9}$/i', $ci))
+                                $errores[] = 'Formato de cédula inválido. Use V-12345678.';
+
+if (!empty($errores)) {
+    http_response_code(422);
+    echo json_encode(['ok'=>false,'codigo'=>'DATOS_INVALIDOS','errores'=>$errores]);
+    exit;
+}
+
+try {
+    $pdo = getDB();
+
+    // ══════════════════════════════════════════════════════
+    // VALIDACIÓN 1: ¿Existe la CI en el padrón de agremiados?
+    // ══════════════════════════════════════════════════════
+    $stmt = $pdo->prepare("SELECT id_agremiado, nombre, apellido, activo FROM agremiado WHERE ci = :ci LIMIT 1");
+    $stmt->execute([':ci' => $ci]);
+    $agremiado = $stmt->fetch();
+
+    if (!$agremiado) {
+        http_response_code(403);
+        echo json_encode([
+            'ok'     => false,
+            'codigo' => 'NO_AGREMIADO',
+            'msg'    => 'La cédula ingresada no se encuentra en el padrón de agremiados de la UPTAG. Si crees que es un error, contacta a la administración.'
+        ]);
+        exit;
+    }
+
+    // ══════════════════════════════════════════════════════
+    // VALIDACIÓN 2: ¿El agremiado está activo?
+    // ══════════════════════════════════════════════════════
+    if (!$agremiado['activo']) {
+        http_response_code(403);
+        echo json_encode([
+            'ok'     => false,
+            'codigo' => 'AGREMIADO_INACTIVO',
+            'msg'    => 'Tu agremiación no está activa. Contacta a la administración.'
+        ]);
+        exit;
+    }
+
+    $idAgremiado = $agremiado['id_agremiado'];
+    $anioActual  = (int) date('Y');
+    $hash        = password_hash($password, PASSWORD_BCRYPT, ['cost'=>12]);
+
+    // ══════════════════════════════════════════════════════
+    // VALIDACIÓN 3: ¿Ya tiene cuenta web?
+    // ══════════════════════════════════════════════════════
+    $stmtCuenta = $pdo->prepare("SELECT id_cuenta, bloqueado FROM cuenta_web WHERE id_agremiado = :id LIMIT 1");
+    $stmtCuenta->execute([':id' => $idAgremiado]);
+    $cuentaExistente = $stmtCuenta->fetch();
+
+    if ($cuentaExistente) {
+        if ($cuentaExistente['bloqueado']) {
+            http_response_code(403);
+            echo json_encode(['ok'=>false,'codigo'=>'CUENTA_BLOQUEADA','msg'=>'Tu cuenta está bloqueada. Contacta a la administración.']);
+            exit;
+        }
+
+        // ══════════════════════════════════════════════════
+        // VALIDACIÓN 4: ¿Ya tiene vigencia activa este año?
+        // ══════════════════════════════════════════════════
+        $stmtVig = $pdo->prepare("SELECT id_vigencia, estado FROM vigencia_anual WHERE id_agremiado = :id AND anio = :anio LIMIT 1");
+        $stmtVig->execute([':id'=>$idAgremiado, ':anio'=>$anioActual]);
+        $vigencia = $stmtVig->fetch();
+
+        if ($vigencia && $vigencia['estado'] === 'activa') {
+            http_response_code(409);
+            echo json_encode([
+                'ok'     => false,
+                'codigo' => 'VIGENCIA_ACTIVA',
+                'msg'    => "Ya tienes acceso activo para el año $anioActual. Puedes iniciar sesión directamente."
+            ]);
+            exit;
+        }
+
+        // Tiene cuenta pero venció: renovar vigencia anual
+        registrarVigencia($pdo, $idAgremiado, $anioActual);
+        echo json_encode([
+            'ok'     => true,
+            'codigo' => 'VIGENCIA_RENOVADA',
+            'msg'    => "¡Vigencia renovada para $anioActual, {$agremiado['nombre']}! Ya puedes iniciar sesión.",
+            'redirigir' => true
+        ]);
+        exit;
+    }
+
+    // ══════════════════════════════════════════════════════
+    // CUENTA NUEVA: crear directamente (sin aprobación)
+    // ══════════════════════════════════════════════════════
+    $pdo->beginTransaction();
+
+    // Traer datos completos del agremiado para copiarlos al afiliado
+    $datosAgr = $pdo->prepare("SELECT nombre, apellido, fecha_nacimiento, correo, telefono FROM agremiado WHERE id_agremiado = :id");
+    $datosAgr->execute([':id' => $idAgremiado]);
+    $ag = $datosAgr->fetch();
+
+    // 1) Buscar si ya existe un afiliado con esa CI
+    $stmtAfil = $pdo->prepare("SELECT id_afiliado FROM afiliado WHERE ci = :ci LIMIT 1");
+    $stmtAfil->execute([':ci' => $ci]);
+    $afiliadoVinc = $stmtAfil->fetchColumn();
+
+    // 2) Si NO existe afiliado, crearlo copiando datos del agremiado
+    if (!$afiliadoVinc) {
+        $pdo->prepare("
+            INSERT INTO afiliado (id_agremiado, nombre, apellido, ci, fecha_nacimiento, correo, telefono, fecha_ingreso, activo, cod_a, cod_pm)
+            VALUES (:idag, :nom, :ape, :ci, :fnac, :correo, :tel, CURDATE(), 1, NULL, NULL)
+        ")->execute([
+            ':idag'   => $idAgremiado,
+            ':nom'    => $ag['nombre'],
+            ':ape'    => $ag['apellido'],
+            ':ci'     => $ci,
+            ':fnac'   => $ag['fecha_nacimiento'] ?: null,
+            ':correo' => $correo ?: $ag['correo'],
+            ':tel'    => $telefono ?: $ag['telefono'],
+        ]);
+        $afiliadoVinc = (int) $pdo->lastInsertId();
+
+        // 3) Registrar al afiliado como su propio beneficiario (titular)
+        $stmtNumBen = $pdo->prepare("SELECT COALESCE(MAX(numero_beneficiario),0)+1 FROM beneficiario WHERE id_afiliado=:id");
+        $stmtNumBen->execute([':id' => $afiliadoVinc]);
+        $numBen = (int)$stmtNumBen->fetchColumn();
+        $pdo->prepare("
+            INSERT IGNORE INTO beneficiario (numero_beneficiario, ci, nombre, apellido, fecha_nacimiento, parentesco, id_afiliado)
+            VALUES (:num, :ci, :nom, :ape, :fnac, 'Titular', :afil)
+        ")->execute([
+            ':num'  => $numBen,
+            ':ci'   => $ci,
+            ':nom'  => $ag['nombre'],
+            ':ape'  => $ag['apellido'],
+            ':fnac' => $ag['fecha_nacimiento'] ?: null,
+            ':afil' => $afiliadoVinc,
+        ]);
+    }
+
+    // 4) Crear en cuenta_web
+    $pdo->prepare("
+        INSERT INTO cuenta_web (id_agremiado, username, password_hash)
+        VALUES (:id, :user, :hash)
+    ")->execute([':id'=>$idAgremiado, ':user'=>$ci, ':hash'=>$hash]);
+
+    // 5) Crear en usuarios_registrados YA VINCULADO al afiliado
+    $pdo->prepare("
+        INSERT IGNORE INTO usuarios_registrados (username, password_hash, rol, activo, id_afiliado)
+        VALUES (:user, :hash, 'afiliado', 1, :afil)
+    ")->execute([':user'=>$ci, ':hash'=>$hash, ':afil'=>$afiliadoVinc]);
+
+    // 6) Registrar vigencia anual
+    registrarVigencia($pdo, $idAgremiado, $anioActual);
+
+    $pdo->commit();
+
+    // Log
+    try {
+        $pdo->prepare("INSERT INTO log_actividad (id_usuario, accion, detalle, ip) VALUES (NULL,'registro_nuevo',:d,:ip)")
+            ->execute([':d'=>"Registro directo CI: $ci", ':ip'=>$_SERVER['REMOTE_ADDR']??'']);
+    } catch (Exception $e) {}
+
+    echo json_encode([
+        'ok'        => true,
+        'codigo'    => 'CUENTA_CREADA',
+        'msg'       => "¡Bienvenido, {$agremiado['nombre']}! Tu cuenta fue creada exitosamente. Ya puedes iniciar sesión.",
+        'nombre'    => $agremiado['nombre'].' '.$agremiado['apellido'],
+        'redirigir' => true
+    ]);
+
+} catch (PDOException $e) {
+    if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
+    http_response_code(500);
+    echo json_encode(['ok'=>false,'codigo'=>'ERROR_SERVIDOR','msg'=>'Error interno. Intenta de nuevo más tarde.']);
+    error_log('[UPTAG Registro] '.$e->getMessage());
+}
+
+function registrarVigencia(PDO $pdo, int $idAgremiado, int $anio): void {
+    $venc = "$anio-12-31";
+    $pdo->prepare("
+        INSERT INTO vigencia_anual (id_agremiado, anio, fecha_vencimiento, estado)
+        VALUES (:id, :anio, :venc, 'activa')
+        ON DUPLICATE KEY UPDATE estado='activa', fecha_vencimiento=VALUES(fecha_vencimiento), fecha_registro=CURRENT_DATE
+    ")->execute([':id'=>$idAgremiado, ':anio'=>$anio, ':venc'=>$venc]);
+}
