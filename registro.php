@@ -76,7 +76,11 @@
     <form id="formRegistro">
       <div class="form-group">
         <label>Cédula de identidad *</label>
-        <input type="text" id="ci" name="ci" placeholder="V-12345678" required style="text-transform:uppercase"/>
+        <div class="ci-group">
+          <span class="ci-prefix">V-</span>
+          <input type="text" id="ci" inputmode="numeric"
+                 placeholder="12345678" required maxlength="9" />
+        </div>
       </div>
       <div class="form-group">
         <label>Contraseña *</label>
@@ -106,6 +110,11 @@
 </div>
 
 <script>
+// Solo dígitos en el campo CI
+document.getElementById('ci').addEventListener('input', function () {
+  this.value = this.value.replace(/\D/g, '');
+});
+
 document.getElementById('formRegistro').addEventListener('submit', async function(e) {
   e.preventDefault();
   const btn = document.getElementById('btnEnviar');
@@ -123,7 +132,7 @@ document.getElementById('formRegistro').addEventListener('submit', async functio
   res.style.display = 'none';
 
   const data = {
-    ci:       document.getElementById('ci').value.trim().toUpperCase(),
+    ci:       'V-' + document.getElementById('ci').value.trim(),
     password: pass,
     correo:   document.getElementById('correo').value.trim(),
     telefono: document.getElementById('telefono').value.trim(),

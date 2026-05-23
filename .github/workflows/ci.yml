@@ -1,0 +1,130 @@
+name: CI/CD — IPP UPTAG
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── JOB 1: Validación de código ────────────────────────────
+  ci:
+    name: PHP Syntax & Security Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_mysql, mbstring, fileinfo
+
+      - name: Verificar sintaxis PHP en todos los archivos
+        run: |
+          ERRORS=0
+          while IFS= read -r file; do
+            if ! php -l "$file" > /dev/null 2>&1; then
+              echo "ERROR de sintaxis: $file"
+              php -l "$file"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done < <(find . -name "*.php" \
+            -not -path "./.git/*" \
+            -not -path "./lib/phpmailer/*")
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "$ERRORS archivo(s) con errores de sintaxis."
+            exit 1
+          fi
+          echo "Todos los archivos PHP tienen sintaxis válida."
+
+      - name: Verificar que .env NO está en el repositorio
+        run: |
+          if git ls-files --error-unmatch .env 2>/dev/null; then
+            echo "CRÍTICO: .env está rastreado por git. Elimínalo con 'git rm --cached .env'."
+            exit 1
+          fi
+          echo "OK: .env no está en el repositorio."
+
+      - name: Verificar que config/database.php NO está en el repositorio
+        run: |
+          if git ls-files --error-unmatch config/database.php 2>/dev/null; then
+            echo "CRÍTICO: config/database.php está rastreado. Contiene credenciales reales."
+            exit 1
+          fi
+          echo "OK: config/database.php no está en el repositorio."
+
+      - name: Buscar credenciales hardcoded accidentales
+        run: |
+          PATTERNS="DB_PASS\s*=\s*'[^']+'|DB_PASS\s*=\s*\"[^\"]+\"|password\s*=\s*'[^']{4,}'"
+          if grep -rEn "$PATTERNS" \
+              --include="*.php" \
+              --exclude-dir=".git" \
+              --exclude="database.example.php" \
+              --exclude-dir="lib" . 2>/dev/null; then
+            echo "ADVERTENCIA: posibles credenciales hardcoded encontradas. Revisa los archivos listados."
+            exit 1
+          fi
+          echo "OK: no se detectaron credenciales hardcoded."
+
+  # ── JOB 2: Deploy al VPS (solo en push a main) ─────────────
+  deploy:
+    name: Deploy a Producción
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Desplegar vía rsync
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          # Excluye credenciales y archivos de usuario (ya existen en el VPS)
+          switches: >-
+            -avz --delete
+            --exclude='.env'
+            --exclude='config/database.php'
+            --exclude='uploads/'
+            --exclude='.git/'
+            --exclude='.github/'
+            --exclude='scripts/backup.sh'
+          path: ./
+          remote_path: ${{ secrets.DEPLOY_PATH }}
+          remote_host: ${{ secrets.SSH_HOST }}
+          remote_port: ${{ secrets.SSH_PORT || 22 }}
+          remote_user: ${{ secrets.SSH_USER }}
+          remote_key:  ${{ secrets.SSH_KEY }}
+
+      - name: Post-deploy — permisos y recarga PHP-FPM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key:      ${{ secrets.SSH_KEY }}
+          port:     ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            # Permisos seguros
+            find . -type f -name "*.php" -exec chmod 644 {} \;
+            find . -type d -exec chmod 755 {} \;
+            chmod 750 config/
+
+            # Recargar PHP-FPM sin downtime
+            sudo systemctl reload php8.2-fpm
+
+            echo "Deploy completado: $(date)"
+
+# ── Secrets de GitHub requeridos para deploy ─────────────────
+# Configurar en: Settings → Secrets → Actions
+#
+#   SSH_HOST     IP o dominio del servidor (ej: 203.0.113.10)
+#   SSH_USER     Usuario SSH con acceso al directorio web (ej: deploy)
+#   SSH_KEY      Clave privada SSH (contenido de ~/.ssh/id_ed25519)
+#   SSH_PORT     Puerto SSH (opcional, por defecto 22)
+#   DEPLOY_PATH  Ruta absoluta del proyecto en el VPS (ej: /var/www/ippuptag)
