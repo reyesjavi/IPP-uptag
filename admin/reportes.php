@@ -62,8 +62,8 @@ if (!empty($_GET['export']) && $_GET['export'] === 'csv') {
 
     $out = fopen('php://output', 'w');
     if (!empty($rows)) {
-        fputcsv($out, array_keys($rows[0]));
-        foreach ($rows as $row) fputcsv($out, $row);
+        fputcsv($out, array_keys($rows[0]), ';');
+        foreach ($rows as $row) fputcsv($out, $row, ';');
     }
     fclose($out);
     exit;

@@ -48,6 +48,13 @@ class SaludController
             $this->redirect('salud.php?tab=reimb');
         }
 
+        // Validar que el tipo de servicio enviado esté habilitado para este afiliado
+        $tiposHab = array_column($this->getServiciosHabilitados(), 'tipo_servicio');
+        if (!in_array($tipo, $tiposHab, true)) {
+            $this->flash(false, 'El servicio seleccionado no está habilitado para tu cuenta. Contacta a administración.');
+            $this->redirect('salud.php?tab=reimb');
+        }
+
         $archivo = $this->procesarAdjunto('salud.php?tab=reimb');
 
         $this->model->crear([
@@ -99,16 +106,33 @@ class SaludController
     {
         $tab  = $_GET['tab'] ?? 'reimb';
         $data = [
-            'tab'          => $tab,
-            'flash'        => $_SESSION['flash'] ?? null,
-            'reembolsos'   => $this->model->getByAfiliado($this->afilId),
-            'resumen'      => $this->model->getResumen($this->afilId),
-            'avales'       => $this->model->getAvalesByAfiliado($this->afilId),
-            'beneficiarios'=> $this->model->getBeneficiarios($this->afilId),
-            'afiliado'     => getAfiliado(),
+            'tab'                  => $tab,
+            'flash'                => $_SESSION['flash'] ?? null,
+            'reembolsos'           => $this->model->getByAfiliado($this->afilId),
+            'resumen'              => $this->model->getResumen($this->afilId),
+            'avales'               => $this->model->getAvalesByAfiliado($this->afilId),
+            'beneficiarios'        => $this->model->getBeneficiarios($this->afilId),
+            'afiliado'             => getAfiliado(),
+            'serviciosHabilitados' => $this->getServiciosHabilitados(),
         ];
         unset($_SESSION['flash']);
         $this->view('salud/index.php', $data);
+    }
+
+    // ── Servicios habilitados para el afiliado en sesión ────────
+    private function getServiciosHabilitados(): array
+    {
+        if (!$this->afilId) return [];
+        $pdo  = getDB();
+        $stmt = $pdo->prepare("
+            SELECT s.id_servicio, s.tipo_servicio, s.cod_pm
+            FROM afiliado_servicio afs
+            JOIN servicio s ON s.id_servicio = afs.id_servicio
+            WHERE afs.id_afiliado = :id AND afs.habilitado = 1
+            ORDER BY s.tipo_servicio
+        ");
+        $stmt->execute([':id' => $this->afilId]);
+        return $stmt->fetchAll();
     }
 
     // ── Helpers ──────────────────────────────────────────────

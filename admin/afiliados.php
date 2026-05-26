@@ -88,9 +88,8 @@ require_once __DIR__ . '/header.php';
       ?>
       <tr>
         <td>AFI-<?= str_pad($a['id_afiliado'],5,'0',STR_PAD_LEFT) ?></td>
-        <td style="font-weight:500"><?= htmlspecialchars($a['nombre'].' '.$a['apellido']) ?><br>
-          <small style="color:var(--text-3)"><?= htmlspecialchars($a['ci']) ?></small></td>
-        <td><?= htmlspecialchars($a['correo']??'—') ?></td>
+        <td style="font-weight:500"><?= htmlspecialchars($a['nombre'].' '.$a['apellido']) ?></td>
+        <td><?= htmlspecialchars($a['ci']) ?></td>
         <td><?= htmlspecialchars($a['cod_pm']??'Sin plan') ?></td>
         <td><?= $a['fecha_ingreso']?date('d/m/Y',strtotime($a['fecha_ingreso'])):'—' ?></td>
         <td><span class="badge <?= $a['activo']?'badge-green':'badge-red' ?>"><?= $a['activo']?'Activo':'Inactivo' ?></span></td>
@@ -110,8 +109,12 @@ require_once __DIR__ . '/header.php';
             </button>
           </form>
         </td>
-        <td>
-          <form method="POST" style="display:inline">
+        <td style="white-space:nowrap">
+          <a href="<?= url('admin/afiliado_servicios.php') ?>?id=<?= $a['id_afiliado'] ?>"
+             class="btn-xs btn-approve" title="Gestionar servicios habilitados">
+            <i class="ti ti-shield-check"></i> Servicios
+          </a>
+          <form method="POST" style="display:inline;margin-left:4px">
             <?= campoCsrf() ?><input type="hidden" name="id" value="<?= $a['id_afiliado'] ?>">
             <input type="hidden" name="accion" value="<?= $a['activo']?'desactivar':'activar' ?>">
             <button type="submit" class="btn-xs <?= $a['activo']?'btn-reject':'btn-approve' ?>"

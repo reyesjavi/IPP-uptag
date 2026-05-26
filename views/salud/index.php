@@ -50,12 +50,14 @@ require_once __DIR__ . '/../../includes/header.php';
               <label>Tipo de servicio *</label>
               <select name="tipo_servicio" required>
                 <option value="">Seleccionar...</option>
-                <option>Consulta médica</option>
-                <option>Medicamentos</option>
-                <option>Exámenes</option>
-                <option>Hospitalización</option>
-                <option>Dental</option>
-                <option>Fisioterapia</option>
+                <?php foreach ($serviciosHabilitados as $srv): ?>
+                  <option value="<?= htmlspecialchars($srv['tipo_servicio']) ?>">
+                    <?= htmlspecialchars($srv['tipo_servicio']) ?>
+                  </option>
+                <?php endforeach; ?>
+                <?php if (empty($serviciosHabilitados)): ?>
+                  <option value="" disabled>Sin servicios habilitados</option>
+                <?php endif; ?>
               </select>
             </div>
             <div class="fl">
@@ -278,29 +280,44 @@ require_once __DIR__ . '/../../includes/header.php';
         <div style="display:flex;align-items:center;justify-content:space-between">
           <div>
             <div style="font-size:14px;font-weight:600">Plan <?= htmlspecialchars($afiliado['cod_pm'] ?? '—') ?></div>
-            <div style="font-size:12px;color:var(--text-3);margin-top:2px">Afiliado: <?= htmlspecialchars(($afiliado['nombre'] ?? '') . ' ' . ($afiliado['apellido'] ?? '')) ?></div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:2px">
+              Afiliado: <?= htmlspecialchars(($afiliado['nombre'] ?? '') . ' ' . ($afiliado['apellido'] ?? '')) ?>
+            </div>
           </div>
           <span class="badge badge-green">Activo</span>
         </div>
       </div>
 
-      <div class="srv-filter">
-        <button class="active" onclick="filterSrv('todos',this)">Todos</button>
-        <button onclick="filterSrv('ambulatorio',this)">Ambulatorio</button>
-        <button onclick="filterSrv('hospitalario',this)">Hospitalario</button>
-        <button onclick="filterSrv('dental',this)">Dental</button>
-        <button onclick="filterSrv('farmacia',this)">Farmacia</button>
-        <button onclick="filterSrv('none',this)">No cubiertos</button>
-      </div>
-
-      <div id="srv-container"></div>
-
-      <hr />
-      <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Cubierto al 100%</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--gold)"></div>Cobertura parcial</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>No cubierto</div>
-      </div>
+      <?php if (empty($serviciosHabilitados)): ?>
+        <div class="sc" style="text-align:center;padding:2.5rem 1.5rem">
+          <i class="ti ti-shield-off" style="font-size:38px;color:var(--text-3);display:block;margin-bottom:.75rem"></i>
+          <h3 style="margin-bottom:.5rem;color:var(--text-2)">Sin servicios habilitados</h3>
+          <p style="font-size:13px;color:var(--text-3);max-width:400px;margin:0 auto 1.2rem">
+            Actualmente no tienes servicios habilitados.<br>
+            Comunícate con la administración del IPP para más información sobre tu cobertura.
+          </p>
+          <div style="display:inline-flex;flex-direction:column;gap:5px;font-size:13px;color:var(--text-2);text-align:left">
+            <span><i class="ti ti-phone"></i> <strong>Teléfono:</strong> (0269) 000-0000</span>
+            <span><i class="ti ti-mail"></i> <strong>Correo:</strong> ipp@uptag.edu.ve</span>
+          </div>
+        </div>
+      <?php else: ?>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.75rem">
+          <?php foreach ($serviciosHabilitados as $srv): ?>
+          <div class="sc" style="padding:1.1rem 1.2rem;border-left:4px solid var(--primary)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <i class="ti ti-shield-check" style="color:var(--primary);font-size:18px"></i>
+              <span style="font-weight:700;font-size:14px;color:var(--text)"><?= htmlspecialchars($srv['tipo_servicio']) ?></span>
+            </div>
+            <div style="font-size:12px;color:var(--text-3)">Plan: <?= htmlspecialchars($srv['cod_pm']) ?></div>
+            <span class="badge badge-green" style="margin-top:8px;font-size:10px">Habilitado</span>
+          </div>
+          <?php endforeach; ?>
+        </div>
+        <p style="font-size:12px;color:var(--text-3);margin-top:1rem;text-align:center">
+          Solo puedes solicitar reembolsos de los servicios que aparecen habilitados.
+        </p>
+      <?php endif; ?>
     </div>
 
   </div><!-- /salud-panels -->
