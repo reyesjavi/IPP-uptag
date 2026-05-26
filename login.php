@@ -103,10 +103,10 @@ $ciIsCI    = ($ciDisplay === '' || ctype_digit($ciDisplay));
 <div class="login-page">
   <div class="login-left"><div class="bg-circle-1"></div><div class="bg-circle-2"></div><div class="ipp-logo-big"><span>IPP</span></div><p class="inst-name">Instituto de Previsión del Profesorado del UPTAG</p>
     <h1>Portal de Servicios<br><span>del Profesorado</span></h1>
-    <p>Gestiona tu afiliación, reembolsos médicos, caja de ahorros y mucho más desde un solo lugar.</p>
+    <p>Gestiona tu afiliación, reembolsos médicos, cartas aval y servicios de salud desde un solo lugar.</p>
     <div class="feat-list">
       <div class="feat-item"><div class="feat-icon"><i class="ti ti-heart-rate-monitor"></i></div><p>Planes médicos y cartas aval</p></div>
-      <div class="feat-item"><div class="feat-icon"><i class="ti ti-wallet"></i></div><p>Caja de ahorros y préstamos</p></div>
+      <div class="feat-item"><div class="feat-icon"><i class="ti ti-file-certificate"></i></div><p>Cartas aval y reembolsos</p></div>
       <div class="feat-item"><div class="feat-icon"><i class="ti ti-users"></i></div><p>Gestión de beneficiarios</p></div>
       <div class="feat-item"><div class="feat-icon"><i class="ti ti-shield-check"></i></div><p>Acceso por roles y permisos</p></div>
     </div>

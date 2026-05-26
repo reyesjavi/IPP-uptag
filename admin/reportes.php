@@ -33,17 +33,6 @@ if (!empty($_GET['export']) && $_GET['export'] === 'csv') {
                                   a.fecha_ingreso AS 'Fecha Ingreso'
                            FROM afiliado a ORDER BY a.apellido",
         ],
-        'retiros' => [
-            'filename' => 'retiros_' . date('Ymd') . '.csv',
-            'sql'      => "SELECT sr.id_retiro AS 'ID', a.ci AS 'Cédula',
-                                  CONCAT(a.nombre,' ',a.apellido) AS 'Afiliado',
-                                  sr.tipo_retiro AS 'Tipo', sr.monto AS 'Monto',
-                                  sr.motivo AS 'Motivo', sr.estado AS 'Estado',
-                                  sr.fecha_solicitud AS 'Fecha Solicitud'
-                           FROM solicitud_retiro sr
-                           JOIN afiliado a ON a.id_afiliado = sr.id_afiliado
-                           ORDER BY sr.fecha_solicitud DESC",
-        ],
         'avales' => [
             'filename' => 'avales_' . date('Ymd') . '.csv',
             'sql'      => "SELECT ca.id_aval AS 'ID', a.ci AS 'Cédula',
@@ -200,9 +189,6 @@ require_once __DIR__ . '/header.php';
     </a>
     <a href="<?= url('admin/reportes.php') ?>?export=csv&tipo=avales" class="btn btn-teal">
       <i class="ti ti-table-export"></i> Avales CSV
-    </a>
-    <a href="<?= url('admin/reportes.php') ?>?export=csv&tipo=retiros" class="btn btn-teal">
-      <i class="ti ti-table-export"></i> Retiros CSV
     </a>
   </div>
 </div>

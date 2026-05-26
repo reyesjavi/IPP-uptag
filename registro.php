@@ -160,7 +160,8 @@ document.getElementById('formRegistro').addEventListener('submit', async functio
         json.codigo === 'NO_AGREMIADO'        ? 'No encontrado en el padrón' :
         json.codigo === 'AGREMIADO_INACTIVO'  ? 'Agremiación inactiva' :
         json.codigo === 'VIGENCIA_ACTIVA'     ? 'Ya tienes acceso activo' :
-        json.codigo === 'CUENTA_BLOQUEADA'    ? 'Cuenta bloqueada' : 'Error',
+        json.codigo === 'CUENTA_BLOQUEADA'    ? 'Cuenta bloqueada' :
+        json.codigo === 'CORREO_DUPLICADO'    ? 'Correo ya registrado' : 'Error',
         json.msg
       );
     }

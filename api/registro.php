@@ -131,6 +131,25 @@ try {
 
     // 2) Si NO existe afiliado, crearlo copiando datos del agremiado
     if (!$afiliadoVinc) {
+        // Resolver correo: usar el del formulario si lo proveyó,
+        // o el del agremiado solo si no está ya en uso (UNIQUE KEY)
+        $correoAfil = null;
+        if (!empty($correo)) {
+            $stmtChkCorreo = $pdo->prepare("SELECT 1 FROM afiliado WHERE correo = :c LIMIT 1");
+            $stmtChkCorreo->execute([':c' => $correo]);
+            if ($stmtChkCorreo->fetchColumn()) {
+                $pdo->rollBack();
+                http_response_code(409);
+                echo json_encode(['ok'=>false,'codigo'=>'CORREO_DUPLICADO','msg'=>'El correo electrónico ingresado ya está registrado por otro usuario.']);
+                exit;
+            }
+            $correoAfil = $correo;
+        } elseif (!empty($ag['correo'])) {
+            $stmtChkCorreo = $pdo->prepare("SELECT 1 FROM afiliado WHERE correo = :c LIMIT 1");
+            $stmtChkCorreo->execute([':c' => $ag['correo']]);
+            $correoAfil = $stmtChkCorreo->fetchColumn() ? null : $ag['correo'];
+        }
+
         $pdo->prepare("
             INSERT INTO afiliado (id_agremiado, nombre, apellido, ci, fecha_nacimiento, correo, telefono, fecha_ingreso, activo, cod_a, cod_pm)
             VALUES (:idag, :nom, :ape, :ci, :fnac, :correo, :tel, CURDATE(), 1, NULL, NULL)
@@ -140,7 +159,7 @@ try {
             ':ape'    => $ag['apellido'],
             ':ci'     => $ci,
             ':fnac'   => $ag['fecha_nacimiento'] ?: null,
-            ':correo' => $correo ?: $ag['correo'],
+            ':correo' => $correoAfil,
             ':tel'    => $telefono ?: $ag['telefono'],
         ]);
         $afiliadoVinc = (int) $pdo->lastInsertId();

@@ -11,21 +11,6 @@ $rolActual = $_SESSION['usuario_rol'] ?? 'afiliado';
 $afilId   = $_SESSION['afiliado_id'] ?? null;
 $afiliado = getAfiliado();
 
-// Saldo (solo si tiene afiliado)
-$saldo = $aportePatronal = 0;
-if ($afilId) {
-    $stmtSaldo = $pdo->prepare("
-        SELECT
-            COALESCE(SUM(CASE WHEN tipo='credito' THEN monto ELSE -monto END),0) AS saldo,
-            COALESCE(SUM(CASE WHEN tipo='credito' AND MONTH(fecha)=MONTH(NOW()) AND concepto LIKE '%patronal%' THEN monto ELSE 0 END),0) AS aporte_patronal
-        FROM movimiento_cuenta WHERE id_afiliado=:id
-    ");
-    $stmtSaldo->execute([':id'=>$afilId]);
-    $cuenta = $stmtSaldo->fetch();
-    $saldo         = $cuenta['saldo']          ?? 0;
-    $aportePatronal= $cuenta['aporte_patronal'] ?? 0;
-}
-
 // Reembolsos pendientes
 $reembPend = 0;
 if ($afilId) {
@@ -91,16 +76,6 @@ require_once __DIR__ . '/includes/header.php';
 
   <div class="metrics">
     <div class="metric">
-      <div class="metric-label">Saldo Caja Ahorros</div>
-      <div class="metric-val">Bs. <?= number_format($saldo, 2,',','.') ?></div>
-      <div class="metric-sub up"><i class="ti ti-wallet"></i> Actualizado hoy</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">Aporte Patronal (mes)</div>
-      <div class="metric-val">Bs. <?= number_format($aportePatronal, 2,',','.') ?></div>
-      <div class="metric-sub up">Mes en curso</div>
-    </div>
-    <div class="metric">
       <div class="metric-label">Reembolsos Pendientes</div>
       <div class="metric-val"><?= $reembPend ?></div>
       <div class="metric-sub <?= $reembPend>0?'down':'up' ?>">
@@ -111,6 +86,16 @@ require_once __DIR__ . '/includes/header.php';
       <div class="metric-label">Beneficiarios</div>
       <div class="metric-val"><?= $numBen ?></div>
       <div class="metric-sub up"><span class="badge badge-green">Activos</span></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Plan Médico</div>
+      <div class="metric-val" style="font-size:18px"><?= htmlspecialchars($afiliado['cod_pm'] ?? 'Sin plan') ?></div>
+      <div class="metric-sub up"><i class="ti ti-heart-rate-monitor"></i> Cobertura</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Estado</div>
+      <div class="metric-val" style="font-size:18px"><?= ($afiliado['activo'] ?? 1) ? 'Activo' : 'Inactivo' ?></div>
+      <div class="metric-sub up"><span class="badge badge-green">Vigente</span></div>
     </div>
   </div>
 
@@ -127,11 +112,11 @@ require_once __DIR__ . '/includes/header.php';
         <a href="<?= url('salud.php?tab=srv') ?>" class="module-btn">
           <div class="module-icon" style="background:var(--primary-light)"><i class="ti ti-shield-check" style="color:var(--primary)"></i></div><p>Mis Servicios</p>
         </a>
-        <a href="<?= url('finanzas.php?tab=cuenta') ?>" class="module-btn">
-          <div class="module-icon" style="background:var(--gold-light)"><i class="ti ti-chart-line" style="color:var(--gold)"></i></div><p>Estado de Cuenta</p>
+        <a href="<?= url('directorio.php') ?>" class="module-btn">
+          <div class="module-icon" style="background:var(--blue-light)"><i class="ti ti-address-book" style="color:var(--blue)"></i></div><p>Directorio</p>
         </a>
-        <a href="<?= url('finanzas.php?tab=sim') ?>" class="module-btn">
-          <div class="module-icon" style="background:var(--gold-light)"><i class="ti ti-calculator" style="color:var(--gold)"></i></div><p>Simulador</p>
+        <a href="<?= url('perfil.php') ?>" class="module-btn">
+          <div class="module-icon" style="background:var(--primary-light)"><i class="ti ti-user" style="color:var(--primary)"></i></div><p>Mi Perfil</p>
         </a>
         <a href="<?= url('noticias.php') ?>" class="module-btn">
           <div class="module-icon" style="background:var(--blue-light)"><i class="ti ti-bell" style="color:var(--blue)"></i></div><p>Noticias</p>

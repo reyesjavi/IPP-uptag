@@ -74,7 +74,6 @@ unset($_SESSION['flash_pass']);
   <div class="nav-links">
     <a href="<?= url('dashboard.php') ?>"  class="<?= ($activeNav??'')==='dashboard'  ?'active':'' ?>">Inicio</a>
     <a href="<?= url('salud.php') ?>"      class="<?= ($activeNav??'')==='salud'      ?'active':'' ?>">Salud</a>
-    <a href="<?= url('finanzas.php') ?>"   class="<?= ($activeNav??'')==='finanzas'   ?'active':'' ?>">Finanzas</a>
     <a href="<?= url('directorio.php') ?>" class="<?= ($activeNav??'')==='directorio' ?'active':'' ?>">Directorio</a>
     <a href="<?= url('noticias.php') ?>"   class="<?= ($activeNav??'')==='noticias'   ?'active':'' ?>">Noticias</a>
   </div>
