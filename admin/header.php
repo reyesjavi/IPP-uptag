@@ -57,13 +57,15 @@ unset($_SESSION['flash_admin']);
       <i class="ti ti-chart-bar"></i> Reportes
     </a>
 
+    <div class="sidebar-section">Convenios</div>
+    <a href="<?= url('admin/medicos.php') ?>" class="sidebar-link <?= ($activeAdmin??'')==='medicos' ?'active':'' ?>">
+      <i class="ti ti-stethoscope"></i> Médicos/Convenios
+    </a>
+
     <?php if (esAdmin()): ?>
     <div class="sidebar-section">Administración</div>
     <a href="<?= url('admin/usuarios.php') ?>" class="sidebar-link <?= ($activeAdmin??'')==='usuarios' ?'active':'' ?>">
       <i class="ti ti-user-cog"></i> Usuarios
-    </a>
-    <a href="<?= url('admin/medicos.php') ?>" class="sidebar-link <?= ($activeAdmin??'')==='medicos' ?'active':'' ?>">
-      <i class="ti ti-stethoscope"></i> Directorio Médico
     </a>
     <a href="<?= url('admin/logs.php') ?>" class="sidebar-link <?= ($activeAdmin??'')==='logs' ?'active':'' ?>">
       <i class="ti ti-list-details"></i> Logs

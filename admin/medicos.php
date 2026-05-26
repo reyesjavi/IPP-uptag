@@ -5,7 +5,7 @@ $activeAdmin  = 'medicos';
 require_once __DIR__ . '/../config/base.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../models/MedicoModel.php';
-requiereRol('admin');
+requiereRol('admin', 'administrativo');
 
 $model  = new MedicoModel();
 $pdo    = getDB();

@@ -214,33 +214,62 @@ require_once __DIR__ . '/../../includes/header.php';
     </div>
 
     <!-- ══ MI PLAN ══ -->
+    <!-- TODO: La estructura completa de planes (coberturas, topes, servicios detallados)
+         está pendiente de definición por parte del IPP. Por ahora se muestra cod_pm y costo. -->
     <div id="st-plan" class="tab-panel <?= $tab==='plan'?'active':'' ?>">
-      <div class="two-col">
-        <div class="sc">
-          <h3>Plan Médico</h3>
-          <div class="info-row"><span class="lbl">Código de plan</span><span class="val"><?= htmlspecialchars($afiliado['cod_pm'] ?? '—') ?></span></div>
-          <div class="info-row"><span class="lbl">Costo mensual</span><span class="val">Bs. <?= number_format($afiliado['costo'] ?? 0, 2, ',', '.') ?></span></div>
-          <div class="info-row"><span class="lbl">Estatus</span><span class="val"><span class="badge badge-green">Activo</span></span></div>
+      <?php if (empty($afiliado['cod_pm'])): ?>
+        <!-- Sin plan asignado -->
+        <div class="sc" style="text-align:center;padding:2.5rem 1.5rem">
+          <i class="ti ti-heart-rate-monitor" style="font-size:40px;color:var(--text-3);display:block;margin-bottom:1rem"></i>
+          <h3 style="margin-bottom:.5rem;color:var(--text-2)">Sin plan médico asignado</h3>
+          <p style="font-size:13px;color:var(--text-3);max-width:420px;margin:0 auto 1.5rem">
+            Aún no tienes un plan médico asignado en el sistema.<br>
+            Comunícate con la administración del IPP para más información sobre tu cobertura.
+          </p>
+          <div style="display:inline-flex;flex-direction:column;gap:6px;font-size:13px;color:var(--text-2);text-align:left">
+            <span><i class="ti ti-phone"></i> <strong>Teléfono:</strong> (0269) 000-0000</span>
+            <span><i class="ti ti-mail"></i> <strong>Correo:</strong> ipp@uptag.edu.ve</span>
+            <span><i class="ti ti-map-pin"></i> <strong>Ubicación:</strong> Rectorado UPTAG, Coro, Falcón</span>
+          </div>
         </div>
-        <div class="sc">
-          <h3>Carga familiar cubierta</h3>
-          <?php if (empty($beneficiarios)): ?>
-            <p style="font-size:13px;color:var(--text-3)">No hay beneficiarios registrados.</p>
-          <?php else: ?>
-          <table>
-            <thead><tr><th>Nombre</th><th>Parentesco</th></tr></thead>
-            <tbody>
-              <?php foreach ($beneficiarios as $b): ?>
-              <tr>
-                <td><?= htmlspecialchars($b['nombre'] . ' ' . $b['apellido']) ?></td>
-                <td><?= htmlspecialchars($b['parentesco'] ?? '—') ?></td>
-              </tr>
-              <?php endforeach; ?>
-            </tbody>
-          </table>
-          <?php endif; ?>
+      <?php else: ?>
+        <!-- Con plan asignado -->
+        <div class="two-col">
+          <div class="sc">
+            <h3>Plan Médico</h3>
+            <div class="info-row">
+              <span class="lbl">Código de plan</span>
+              <span class="val"><?= htmlspecialchars($afiliado['cod_pm']) ?></span>
+            </div>
+            <div class="info-row">
+              <span class="lbl">Costo mensual</span>
+              <span class="val">Bs. <?= number_format((float)($afiliado['costo'] ?? 0), 2, ',', '.') ?></span>
+            </div>
+            <div class="info-row">
+              <span class="lbl">Estatus</span>
+              <span class="val"><span class="badge badge-green">Activo</span></span>
+            </div>
+          </div>
+          <div class="sc">
+            <h3>Carga familiar cubierta</h3>
+            <?php if (empty($beneficiarios)): ?>
+              <p style="font-size:13px;color:var(--text-3)">No hay beneficiarios registrados.</p>
+            <?php else: ?>
+            <table>
+              <thead><tr><th>Nombre</th><th>Parentesco</th></tr></thead>
+              <tbody>
+                <?php foreach ($beneficiarios as $b): ?>
+                <tr>
+                  <td><?= htmlspecialchars($b['nombre'] . ' ' . $b['apellido']) ?></td>
+                  <td><?= htmlspecialchars($b['parentesco'] ?? '—') ?></td>
+                </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+            <?php endif; ?>
+          </div>
         </div>
-      </div>
+      <?php endif; ?>
     </div>
 
     <!-- ══ MIS SERVICIOS ══ -->

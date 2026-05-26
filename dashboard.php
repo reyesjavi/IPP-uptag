@@ -93,9 +93,18 @@ require_once __DIR__ . '/includes/header.php';
       <div class="metric-sub up"><i class="ti ti-heart-rate-monitor"></i> Cobertura</div>
     </div>
     <div class="metric">
-      <div class="metric-label">Estado</div>
-      <div class="metric-val" style="font-size:18px"><?= ($afiliado['activo'] ?? 1) ? 'Activo' : 'Inactivo' ?></div>
-      <div class="metric-sub up"><span class="badge badge-green">Vigente</span></div>
+      <?php
+        $sit = $afiliado['situacion'] ?? 'activo';
+        [$sitCls, $sitLbl] = match($sit) {
+            'jubilado'   => ['badge-blue',  'Jubilado'],
+            'suspendido' => ['badge-amber', 'Suspendido'],
+            'egresado'   => ['badge',       'Egresado'],
+            default      => ['badge-green', 'Activo'],
+        };
+      ?>
+      <div class="metric-label">Situación</div>
+      <div class="metric-val" style="font-size:18px"><?= $sitLbl ?></div>
+      <div class="metric-sub up"><span class="badge <?= $sitCls ?>"><?= $sitLbl ?></span></div>
     </div>
   </div>
 

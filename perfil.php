@@ -94,12 +94,25 @@ require_once __DIR__ . '/includes/header.php';
             </span>
           </div>
           <div class="info-row">
-            <span class="lbl">Estatus</span>
+            <span class="lbl">Acceso al sistema</span>
             <span class="val">
               <span class="badge <?= ($afiliado['activo'] ?? 0) ? 'badge-green' : 'badge-red' ?>">
                 <?= ($afiliado['activo'] ?? 0) ? 'Activo' : 'Inactivo' ?>
               </span>
             </span>
+          </div>
+          <?php
+            $sit = $afiliado['situacion'] ?? 'activo';
+            [$sitCls, $sitLbl] = match($sit) {
+                'jubilado'   => ['badge-blue',  'Jubilado'],
+                'suspendido' => ['badge-amber', 'Suspendido'],
+                'egresado'   => ['badge',       'Egresado'],
+                default      => ['badge-green', 'Activo'],
+            };
+          ?>
+          <div class="info-row">
+            <span class="lbl">Situación laboral</span>
+            <span class="val"><span class="badge <?= $sitCls ?>"><?= $sitLbl ?></span></span>
           </div>
         </div>
       </div>
@@ -128,9 +141,9 @@ require_once __DIR__ . '/includes/header.php';
               onclick="alert('Funcionalidad de cambio de contraseña próximamente.')">
               <i class="ti ti-lock"></i> Cambiar contraseña
             </button>
-            <button class="btn btn-outline">
-              <i class="ti ti-download"></i> Constancia
-            </button>
+            <a href="<?= url('constancia.php') ?>" class="btn btn-outline" target="_blank">
+              <i class="ti ti-download"></i> Constancia PDF
+            </a>
           </div>
         </div>
 

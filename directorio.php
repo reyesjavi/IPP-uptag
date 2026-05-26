@@ -76,14 +76,9 @@ require_once __DIR__ . '/includes/header.php';
       <span class="badge badge-green" style="margin-top:6px">Activo</span>
     </div>
     <?php endforeach; else: ?>
-      <!-- Fallback estático si la BD está vacía -->
-      <div class="dir-card">
-        <div class="dir-name">Policlínica Los Llanos</div>
-        <div class="dir-spec">Clínica General · Convenio Full</div>
-        <div class="dir-info"><i class="ti ti-map-pin"></i> Acarigua, Portuguesa</div>
-        <div class="dir-info"><i class="ti ti-phone"></i> 0255-621-0000</div>
-        <div class="dir-info"><i class="ti ti-clock"></i> Lun–Dom 24 horas</div>
-        <span class="badge badge-green" style="margin-top:6px">Activo</span>
+      <div class="dir-card" style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--text-3)">
+        <i class="ti ti-hospital" style="font-size:32px;display:block;margin-bottom:.5rem"></i>
+        No hay centros en convenio registrados aún. Contacta a la administración del IPP para más información.
       </div>
     <?php endif; ?>
   </div>
