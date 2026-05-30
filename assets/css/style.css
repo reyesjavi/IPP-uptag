@@ -645,6 +645,21 @@ hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
 /* =============================================
    RESPONSIVE — Media Queries
 ============================================= */
+/* Hamburger button — hidden on desktop */
+.menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  line-height: 1;
+  order: 3;
+}
+.menu-toggle:hover { background: rgba(255,255,255,.1); }
+
 @media (max-width: 900px) {
   .login-page { grid-template-columns: 1fr; }
   .login-left  { display: none; }
@@ -655,9 +670,25 @@ hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
   .metrics      { grid-template-columns: repeat(2, 1fr); }
   .dash-grid    { grid-template-columns: 1fr; }
   .two-col      { grid-template-columns: 1fr; }
-  .nav-links { display: none; }
-  .nav { padding: 0 1rem; }
+  .nav { padding: 0 1rem; flex-wrap: wrap; position: fixed; }
+  .nav-links {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    order: 10;
+    background: var(--primary);
+    padding: .5rem 0 .75rem;
+    gap: 2px;
+    border-top: 1px solid rgba(255,255,255,.12);
+  }
+  .nav-links a { padding: 10px 1rem; border-radius: 0; }
+  .nav.nav-open .nav-links { display: flex; }
+  .menu-toggle { display: flex; align-items: center; }
   .wrap { padding: 1rem; }
+}
+
+@media (max-width: 768px) {
+  .metrics { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 600px) {

@@ -94,8 +94,29 @@ function esAfiliado(): bool {
     return ($_SESSION['usuario_rol'] ?? '') === 'afiliado';
 }
 
+// ── Rate limiting por IP usando log_actividad ──────────────────
+function verificarRateLimitIP(string $accion, int $limite, int $ventanaMinutos): bool {
+    try {
+        $pdo  = getDB();
+        $ip   = $_SERVER['REMOTE_ADDR'] ?? '';
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) FROM log_actividad
+            WHERE accion = :a AND ip = :ip
+              AND fecha > DATE_SUB(NOW(), INTERVAL :min MINUTE)
+        ");
+        $stmt->execute([':a' => $accion, ':ip' => $ip, ':min' => $ventanaMinutos]);
+        return (int)$stmt->fetchColumn() < $limite;
+    } catch (Exception $e) {
+        return true; // ante error de BD, no bloquear
+    }
+}
+
 // ── Login con protección anti fuerza bruta + verificación de vigencia ──
 function login(string $ci, string $password): array {
+    if (!verificarRateLimitIP('login_intento', 10, 60)) {
+        return ['ok'=>false,'msg'=>'Demasiados intentos desde esta red. Espera un momento e inténtalo de nuevo.'];
+    }
+
     $pdo  = getDB();
     $stmt = $pdo->prepare("
         SELECT u.id_usuario, u.username, u.password_hash, u.rol, u.activo,
@@ -110,6 +131,7 @@ function login(string $ci, string $password): array {
     $usuario = $stmt->fetch();
 
     if (!$usuario) {
+        registrarLog('login_intento', "CI no encontrada: $ci");
         return ['ok'=>false,'msg'=>'Usuario no encontrado. Verifica tu cédula.'];
     }
 
@@ -133,6 +155,7 @@ function login(string $ci, string $password): array {
         }
         $pdo->prepare("UPDATE usuarios_registrados SET intentos_fallidos=:i WHERE id_usuario=:id")
             ->execute([':i'=>$intentos, ':id'=>$usuario['id_usuario']]);
+        registrarLog('login_intento', "Contraseña incorrecta CI: $ci", $usuario['id_usuario']);
         $restantes = 3 - $intentos;
         return ['ok'=>false,'msg'=>"Contraseña incorrecta. Te quedan $restantes intento(s)."];
     }

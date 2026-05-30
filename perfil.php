@@ -137,8 +137,7 @@ require_once __DIR__ . '/includes/header.php';
             <span class="val"><span class="badge badge-green">Sí</span></span>
           </div>
           <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-outline"
-              onclick="alert('Funcionalidad de cambio de contraseña próximamente.')">
+            <button class="btn btn-outline" onclick="abrirCambioPass()">
               <i class="ti ti-lock"></i> Cambiar contraseña
             </button>
             <a href="<?= url('constancia.php') ?>" class="btn btn-outline" target="_blank">

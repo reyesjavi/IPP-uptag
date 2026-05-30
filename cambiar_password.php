@@ -30,7 +30,7 @@ if ($passNueva !== $passConfirmar) {
 }
 
 if (strlen($passNueva) < 16) {
-    $_SESSION['flash_pass'] = ['ok'=>false,'msg'=>'La nueva contraseña debe tener al menos 8 caracteres.'];
+    $_SESSION['flash_pass'] = ['ok'=>false,'msg'=>'La nueva contraseña debe tener al menos 16 caracteres.'];
     header('Location: ' . url('perfil.php'));
     exit;
 }

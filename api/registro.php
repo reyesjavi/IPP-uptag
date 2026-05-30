@@ -3,12 +3,19 @@
 define('API_REQUEST', true);
 require_once __DIR__ . '/../config/base.php';
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/auth.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['ok'=>false,'codigo'=>'METODO_NO_PERMITIDO','msg'=>'Solo se acepta POST.']);
+    exit;
+}
+
+if (!verificarRateLimitIP('registro_intento', 5, 60)) {
+    http_response_code(429);
+    echo json_encode(['ok'=>false,'codigo'=>'RATE_LIMIT','msg'=>'Demasiadas solicitudes desde esta red. Espera un momento e inténtalo de nuevo.']);
     exit;
 }
 
@@ -34,6 +41,8 @@ if (!empty($errores)) {
     echo json_encode(['ok'=>false,'codigo'=>'DATOS_INVALIDOS','errores'=>$errores]);
     exit;
 }
+
+registrarLog('registro_intento', "Intento de registro CI: $ci");
 
 try {
     $pdo = getDB();

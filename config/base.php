@@ -67,8 +67,11 @@ if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_httponly', '1');
     ini_set('session.use_only_cookies', '1');
     ini_set('session.cookie_samesite', 'Lax');
-    // En producción con HTTPS, descomentar:
-    // ini_set('session.cookie_secure', '1');
+    ini_set('session.gc_maxlifetime', 1800);
+    ini_set('session.cookie_lifetime', 0);
+    if (getenv('APP_ENV') === 'production') {
+        ini_set('session.cookie_secure', '1');
+    }
 }
 
 // ── CSRF: generar y verificar token ──

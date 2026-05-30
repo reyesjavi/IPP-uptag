@@ -229,7 +229,7 @@ require_once __DIR__ . '/../../includes/header.php';
             Comunícate con la administración del IPP para más información sobre tu cobertura.
           </p>
           <div style="display:inline-flex;flex-direction:column;gap:6px;font-size:13px;color:var(--text-2);text-align:left">
-            <span><i class="ti ti-phone"></i> <strong>Teléfono:</strong> (0269) 000-0000</span>
+            <span><i class="ti ti-building"></i> <strong>Oficina:</strong> Departamento IPP, UPTAG</span>
             <span><i class="ti ti-mail"></i> <strong>Correo:</strong> ipp@uptag.edu.ve</span>
             <span><i class="ti ti-map-pin"></i> <strong>Ubicación:</strong> Rectorado UPTAG, Coro, Falcón</span>
           </div>
@@ -297,7 +297,7 @@ require_once __DIR__ . '/../../includes/header.php';
             Comunícate con la administración del IPP para más información sobre tu cobertura.
           </p>
           <div style="display:inline-flex;flex-direction:column;gap:5px;font-size:13px;color:var(--text-2);text-align:left">
-            <span><i class="ti ti-phone"></i> <strong>Teléfono:</strong> (0269) 000-0000</span>
+            <span><i class="ti ti-building"></i> <strong>Oficina:</strong> Departamento IPP, UPTAG</span>
             <span><i class="ti ti-mail"></i> <strong>Correo:</strong> ipp@uptag.edu.ve</span>
           </div>
         </div>

@@ -24,9 +24,12 @@ $partes    = explode('_', $file);
 $fileAfil  = isset($partes[1]) ? (int)$partes[1] : -1;
 $sesionAfil = (int)($_SESSION['afiliado_id'] ?? 0);
 
-if (!esAdministrativo() && $fileAfil !== $sesionAfil) {
-    http_response_code(403);
-    exit('Acceso denegado.');
+if ($fileAfil !== $sesionAfil) {
+    if (!esAdministrativo()) {
+        http_response_code(403);
+        exit('Acceso denegado.');
+    }
+    registrarLog('file_download_admin', "Acceso a archivo de AFI-$fileAfil: $file");
 }
 
 $ext  = strtolower(pathinfo($file, PATHINFO_EXTENSION));

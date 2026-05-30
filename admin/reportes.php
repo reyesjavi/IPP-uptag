@@ -60,10 +60,15 @@ if (!empty($_GET['export']) && $_GET['export'] === 'csv') {
     // BOM UTF-8 para Excel
     echo "\xEF\xBB\xBF";
 
+    $escaparCSV = fn(string $val): string =>
+        preg_match('/^[=+\-@\t\r]/', $val) ? "'" . $val : $val;
+
     $out = fopen('php://output', 'w');
     if (!empty($rows)) {
         fputcsv($out, array_keys($rows[0]), ';');
-        foreach ($rows as $row) fputcsv($out, $row, ';');
+        foreach ($rows as $row) {
+            fputcsv($out, array_map($escaparCSV, array_map('strval', $row)), ';');
+        }
     }
     fclose($out);
     exit;

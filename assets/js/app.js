@@ -54,6 +54,22 @@ document.addEventListener('DOMContentLoaded', function () {
     if (tabBtn) tabBtn.click();
   }
 
+  // ── Hamburger menu (mobile) ──
+  const menuToggle = document.getElementById('menuToggle');
+  if (menuToggle) {
+    menuToggle.addEventListener('click', function () {
+      const nav = document.querySelector('.nav');
+      const open = nav.classList.toggle('nav-open');
+      menuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.querySelectorAll('.nav-links a').forEach(function (a) {
+      a.addEventListener('click', function () {
+        document.querySelector('.nav').classList.remove('nav-open');
+        menuToggle.setAttribute('aria-expanded', 'false');
+      });
+    });
+  }
+
   // ── Confirmar acciones destructivas ──
   document.querySelectorAll('[data-confirm]').forEach(function (el) {
     el.addEventListener('click', function (e) {

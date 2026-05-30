@@ -78,6 +78,10 @@ unset($_SESSION['flash_pass']);
     <a href="<?= url('noticias.php') ?>"   class="<?= ($activeNav??'')==='noticias'   ?'active':'' ?>">Noticias</a>
   </div>
 
+  <button class="menu-toggle" id="menuToggle" aria-label="Abrir menú" aria-expanded="false">
+    <i aria-hidden="true" class="ti ti-menu-2"></i>
+  </button>
+
   <!-- MENÚ DESPLEGABLE DEL USUARIO -->
   <div class="nav-user-wrap" id="userWrap">
     <div class="nav-user" onclick="toggleDropdown()" style="cursor:pointer">
@@ -193,12 +197,7 @@ function validarPass() {
   err.style.display = 'none';
   return true;
 }
-// Auto-ocultar flash
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.flash-msg').forEach(el => {
-    setTimeout(() => { el.style.opacity='0'; setTimeout(()=>el.remove(),400); }, 4000);
-  });
-});
+// Auto-ocultar flash (manejado en app.js; este bloque queda solo para el flash del modal)
 </script>
 
 <main class="main">
