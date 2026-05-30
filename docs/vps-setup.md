@@ -31,6 +31,26 @@ sudo apt install -y nginx
 sudo systemctl enable --now nginx
 ```
 
+### Rate limiting — agregar al bloque `http` de `/etc/nginx/nginx.conf`
+
+Abrir `/etc/nginx/nginx.conf` y dentro del bloque `http { ... }` añadir:
+
+```nginx
+# Zonas de rate limiting (se definen UNA sola vez en el bloque http)
+# Zona general: 20 req/s por IP (burst 40) — protege contra floods
+limit_req_zone $binary_remote_addr zone=ipp_general:10m rate=20r/s;
+
+# Zona de autenticación: 10 req/min por IP — login, registro, recuperación
+limit_req_zone $binary_remote_addr zone=ipp_auth:10m    rate=10r/m;
+
+# Respuesta estándar al superar el límite
+limit_req_status 429;
+```
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
 ### Configuración del virtual host
 
 Crear `/etc/nginx/sites-available/ippuptag`:
@@ -57,7 +77,11 @@ server {
     include             /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
 
-    # Seguridad: ocultar archivos sensibles
+    # ── Rate limiting general (todas las páginas PHP) ────────────
+    # 20 req/s con margen de 40 peticiones en ráfaga
+    limit_req zone=ipp_general burst=40 nodelay;
+
+    # ── Seguridad: ocultar archivos sensibles ────────────────────
     location ~ /\.(env|git|htaccess) {
         deny all;
         return 404;
@@ -71,7 +95,18 @@ server {
         return 404;
     }
 
-    # PHP-FPM
+    # ── Endpoints de autenticación: límite estricto ──────────────
+    # 10 req/min + burst de 5; aplica ADEMÁS del límite general
+    location ~ ^/(login|registro|recuperar_password|cambiar_password|api/registro)\.php$ {
+        limit_req zone=ipp_auth burst=5 nodelay;
+
+        include        fastcgi_params;
+        fastcgi_pass   unix:/run/php/php8.2-fpm.sock;
+        fastcgi_index  index.php;
+        fastcgi_param  SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+    }
+
+    # ── PHP-FPM (resto de páginas) ───────────────────────────────
     location ~ \.php$ {
         include        fastcgi_params;
         fastcgi_pass   unix:/run/php/php8.2-fpm.sock;
@@ -79,7 +114,7 @@ server {
         fastcgi_param  SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
     }
 
-    # Archivos estáticos con caché
+    # ── Archivos estáticos con caché (exentos de rate limit) ─────
     location ~* \.(css|js|png|jpg|jpeg|gif|ico|woff2?)$ {
         expires 30d;
         add_header Cache-Control "public, immutable";
@@ -252,14 +287,38 @@ sudo ufw enable
 
 ---
 
-## 9. Fail2ban (protección SSH + Nginx)
+## 9. Fail2ban (protección SSH + Nginx + aplicación web)
+
+### Filtro personalizado para rate limiting HTTP
+
+Crear `/etc/fail2ban/filter.d/nginx-req-limit.conf`:
+
+```ini
+[Definition]
+# Banear IPs que reciban muchos 429 (rate limit superado) en Nginx
+failregex = ^<HOST> .* "(GET|POST|HEAD) .* HTTP/[0-9.]+" 429
+ignoreregex =
+```
+
+### Filtro para ataques a endpoints de autenticación
+
+Crear `/etc/fail2ban/filter.d/ipp-auth.conf`:
+
+```ini
+[Definition]
+# Detectar múltiples errores 4xx en endpoints de login/registro
+failregex = ^<HOST> .* "(POST|GET) /(login|registro|recuperar_password|api/registro)\.php .* HTTP/[0-9.]+" 4[0-9]{2}
+ignoreregex = ^<HOST> .* HTTP/[0-9.]+" 200
+```
+
+### Configuración de jails
 
 Crear `/etc/fail2ban/jail.local`:
 
 ```ini
 [DEFAULT]
-bantime  = 3600
-findtime = 600
+bantime  = 3600   ; ban de 1 hora por defecto
+findtime = 600    ; ventana de 10 minutos
 maxretry = 5
 
 [sshd]
@@ -267,10 +326,33 @@ enabled = true
 
 [nginx-http-auth]
 enabled = true
+
+# Banear IPs que disparen rate limit (429) más de 20 veces en 5 minutos
+[nginx-req-limit]
+enabled   = true
+filter    = nginx-req-limit
+logpath   = /var/log/nginx/access.log
+maxretry  = 20
+findtime  = 300
+bantime   = 7200  ; ban de 2 horas
+
+# Banear IPs que ataquen endpoints de auth repetidamente
+[ipp-auth]
+enabled   = true
+filter    = ipp-auth
+logpath   = /var/log/nginx/access.log
+maxretry  = 15
+findtime  = 300
+bantime   = 86400 ; ban de 24 horas para ataques de auth
 ```
 
 ```bash
 sudo systemctl enable --now fail2ban
+
+# Verificar que los jails están activos
+sudo fail2ban-client status
+sudo fail2ban-client status nginx-req-limit
+sudo fail2ban-client status ipp-auth
 ```
 
 ---
