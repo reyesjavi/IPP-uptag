@@ -117,10 +117,17 @@ function login(string $ci, string $password): array {
         return ['ok'=>false,'msg'=>'Demasiados intentos desde esta red. Espera un momento e inténtalo de nuevo.'];
     }
 
+    // Mensaje único para credenciales inválidas: no revela si la cédula existe.
+    $msgGenerico = 'Cédula o contraseña incorrecta.';
+
     $pdo  = getDB();
+    // Las comparaciones del bloqueo temporal se hacen en SQL (NOW()) para no
+    // mezclar la zona horaria de MySQL con la de PHP al parsear la fecha.
     $stmt = $pdo->prepare("
         SELECT u.id_usuario, u.username, u.password_hash, u.rol, u.activo,
                u.intentos_fallidos, u.bloqueado, u.totp_secret, u.totp_habilitado,
+               (u.bloqueado_hasta IS NOT NULL AND u.bloqueado_hasta >  NOW()) AS bloqueo_activo,
+               (u.bloqueado_hasta IS NOT NULL AND u.bloqueado_hasta <= NOW()) AS bloqueo_expirado,
                a.id_afiliado, a.nombre, a.apellido, a.cod_pm, a.cod_a
         FROM usuarios_registrados u
         LEFT JOIN afiliado a ON a.id_afiliado = u.id_afiliado
@@ -132,32 +139,43 @@ function login(string $ci, string $password): array {
 
     if (!$usuario) {
         registrarLog('login_intento', "CI no encontrada: $ci");
-        return ['ok'=>false,'msg'=>'Usuario no encontrado. Verifica tu cédula.'];
+        return ['ok'=>false,'msg'=>$msgGenerico];
     }
 
-    // Cuenta bloqueada por intentos fallidos
+    // Bloqueo MANUAL del administrador
     if (!empty($usuario['bloqueado'])) {
-        return ['ok'=>false,'msg'=>'Cuenta bloqueada por múltiples intentos fallidos. Contacta a administración.'];
+        return ['ok'=>false,'msg'=>'Cuenta bloqueada. Contacta a administración.'];
+    }
+
+    // Bloqueo TEMPORAL por intentos fallidos (se levanta solo al expirar la ventana)
+    if (!empty($usuario['bloqueo_activo'])) {
+        return ['ok'=>false,'msg'=>'Demasiados intentos fallidos. Intenta de nuevo en unos minutos.'];
     }
 
     if (!$usuario['activo']) {
-        return ['ok'=>false,'msg'=>'Usuario inactivo. Contacte administración.'];
+        return ['ok'=>false,'msg'=>'Tu cuenta aún no está activada. Revisa el enlace de verificación enviado a tu correo.'];
     }
 
     // Verificar contraseña
     if (!password_verify($password, $usuario['password_hash'])) {
-        // Incrementar intentos fallidos
-        $intentos = (int)($usuario['intentos_fallidos'] ?? 0) + 1;
-        if ($intentos >= 3) {
-            $pdo->prepare("UPDATE usuarios_registrados SET intentos_fallidos=:i, bloqueado=1 WHERE id_usuario=:id")
+        // Si la ventana de bloqueo anterior ya expiró, reiniciar el contador.
+        $intentosPrevios = !empty($usuario['bloqueo_expirado']) ? 0 : (int)($usuario['intentos_fallidos'] ?? 0);
+        $intentos = $intentosPrevios + 1;
+
+        if ($intentos >= 5) {
+            // Bloqueo temporal de 15 minutos (no permanente).
+            $pdo->prepare("UPDATE usuarios_registrados
+                           SET intentos_fallidos=:i, bloqueado_hasta=DATE_ADD(NOW(), INTERVAL 15 MINUTE)
+                           WHERE id_usuario=:id")
                 ->execute([':i'=>$intentos, ':id'=>$usuario['id_usuario']]);
-            return ['ok'=>false,'msg'=>'Demasiados intentos fallidos. Tu cuenta ha sido bloqueada por seguridad.'];
+            registrarLog('login_bloqueo_temporal', "Bloqueo temporal por intentos CI: $ci", $usuario['id_usuario']);
+            return ['ok'=>false,'msg'=>'Demasiados intentos fallidos. Tu cuenta quedó bloqueada por 15 minutos.'];
         }
+
         $pdo->prepare("UPDATE usuarios_registrados SET intentos_fallidos=:i WHERE id_usuario=:id")
             ->execute([':i'=>$intentos, ':id'=>$usuario['id_usuario']]);
         registrarLog('login_intento', "Contraseña incorrecta CI: $ci", $usuario['id_usuario']);
-        $restantes = 3 - $intentos;
-        return ['ok'=>false,'msg'=>"Contraseña incorrecta. Te quedan $restantes intento(s)."];
+        return ['ok'=>false,'msg'=>$msgGenerico];
     }
 
     // Verificar vigencia anual SOLO para afiliados
@@ -176,8 +194,8 @@ function login(string $ci, string $password): array {
         $_SESSION['vigencia_activa'] = true; // admin/administrativo no requieren vigencia
     }
 
-    // Resetear intentos fallidos al éxito
-    $pdo->prepare("UPDATE usuarios_registrados SET intentos_fallidos=0, ultimo_acceso=NOW() WHERE id_usuario=:id")
+    // Resetear intentos fallidos y bloqueo temporal al éxito
+    $pdo->prepare("UPDATE usuarios_registrados SET intentos_fallidos=0, bloqueado_hasta=NULL, ultimo_acceso=NOW() WHERE id_usuario=:id")
         ->execute([':id'=>$usuario['id_usuario']]);
 
     // Verificar si requiere 2FA

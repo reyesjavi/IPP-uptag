@@ -95,6 +95,20 @@ server {
         return 404;
     }
 
+    # ── Uploads: NUNCA ejecutar PHP en esta carpeta ──────────────
+    # Defensa en profundidad: el .htaccess de uploads/ sólo lo respeta
+    # Apache, no Nginx. Lo ideal es que UPLOAD_PATH apunte FUERA del
+    # webroot (ver sección 5). Este bloque cubre el caso en que la
+    # carpeta uploads/ quede dentro de la raíz del sitio.
+    # Los adjuntos sensibles se sirven con control de acceso por sesión
+    # vía ver_archivo.php; evita enlaces directos a /uploads/.
+    location ^~ /uploads/ {
+        location ~ \.(php|phtml|phar|pl|py|cgi|sh)$ {
+            deny all;
+            return 403;
+        }
+    }
+
     # ── Endpoints de autenticación: límite estricto ──────────────
     # 10 req/min + burst de 5; aplica ADEMÁS del límite general
     location ~ ^/(login|registro|recuperar_password|cambiar_password|api/registro)\.php$ {
@@ -208,7 +222,19 @@ FLUSH PRIVILEGES;
 mysql -u root -p ippuptag < /var/www/ippuptag/config/schema.sql
 mysql -u root -p ippuptag < /var/www/ippuptag/config/migracion_p2.sql
 mysql -u root -p ippuptag < /var/www/ippuptag/config/migracion_p3.sql
+
+# Aplicar el resto de migraciones en orden de versión (incluye v12:
+# verificación de correo, bloqueo temporal y eliminación de cuenta_web)
+for f in $(ls /var/www/ippuptag/config/migraciones_v*.sql | sort -V); do
+    echo "Aplicando $f"
+    mysql -u root -p ippuptag < "$f"
+done
 ```
+
+> **Nota de seguridad:** define `UPLOAD_PATH` en `.env` apuntando FUERA del
+> webroot (p. ej. `/var/ipp-uploads/reembolsos`, ver sección 5). Los adjuntos
+> sólo deben servirse a través de `ver_archivo.php`, que valida sesión y
+> propiedad del archivo.
 
 ---
 

@@ -147,14 +147,27 @@ document.getElementById('formRegistro').addEventListener('submit', async functio
     const json = await resp.json();
 
     if (json.ok) {
+      // Sólo se vuelve al login cuando ya se puede iniciar sesión.
+      const redirigeAlLogin = (json.codigo === 'VIGENCIA_RENOVADA');
+      const titulos = {
+        VIGENCIA_RENOVADA:      '¡Vigencia renovada!',
+        VERIFICACION_ENVIADA:   'Revisa tu correo',
+        VERIFICACION_REENVIADA: 'Te reenviamos el enlace',
+        PENDIENTE_APROBACION:   'Solicitud pendiente',
+      };
+      const tipos = {
+        VIGENCIA_RENOVADA:    'warn',
+        PENDIENTE_APROBACION: 'warn',
+      };
       mostrarResultado(
-        json.codigo === 'VIGENCIA_RENOVADA' ? 'warn' : 'ok',
-        json.codigo === 'VIGENCIA_RENOVADA' ? '¡Vigencia renovada!' : '¡Cuenta creada exitosamente!',
+        tipos[json.codigo] || 'ok',
+        titulos[json.codigo] || 'Listo',
         json.msg
       );
       document.getElementById('formRegistro').style.display = 'none';
-      // Redirigir al login después de 3 segundos
-      setTimeout(() => { window.location.href = '<?= url("login.php") ?>'; }, 3000);
+      if (redirigeAlLogin) {
+        setTimeout(() => { window.location.href = '<?= url("login.php") ?>'; }, 3000);
+      }
     } else {
       mostrarResultado('error',
         json.codigo === 'NO_AGREMIADO'        ? 'No encontrado en el padrón' :

@@ -2,6 +2,7 @@
 // recuperar_password.php — Solicitar recuperación de contraseña
 require_once __DIR__ . '/config/base.php';
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/auth.php';   // verificarRateLimitIP()
 require_once __DIR__ . '/lib/phpmailer/Exception.php';
 require_once __DIR__ . '/lib/phpmailer/PHPMailer.php';
 require_once __DIR__ . '/lib/phpmailer/SMTP.php';
@@ -22,8 +23,15 @@ if ($paso === 'solicitar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($ci)) {
         $error = 'Ingresa tu cédula de identidad.';
+    } elseif (!verificarRateLimitIP('recuperacion_intento', 5, 60)) {
+        // Limitar el abuso del endpoint (spam de correos / sondeo)
+        $error = 'Demasiadas solicitudes desde esta red. Espera un momento e inténtalo de nuevo.';
     } else {
         $pdo  = getDB();
+        $ip   = $_SERVER['REMOTE_ADDR'] ?? '';
+        // Registrar el intento para que el rate-limit por IP lo contabilice
+        registrarLog_simple($pdo, 'recuperacion_intento', "CI: $ci", null, $ip);
+
         $stmt = $pdo->prepare("
             SELECT u.id_usuario, u.username, a.correo, a.nombre
             FROM usuarios_registrados u
@@ -42,15 +50,16 @@ if ($paso === 'solicitar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("UPDATE recuperacion_password SET usado=1 WHERE id_usuario=:id AND usado=0")
                 ->execute([':id' => $usuario['id_usuario']]);
 
-            // Generar token seguro
-            $token    = bin2hex(random_bytes(32));
-            $expira   = date('Y-m-d H:i:s', strtotime('+1 hour'));
-            $ip       = $_SERVER['REMOTE_ADDR'] ?? '';
+            // Generar token seguro. En BD se guarda su hash sha256; el enlace
+            // del correo lleva el token en claro.
+            $token     = bin2hex(random_bytes(32));
+            $tokenHash = hash('sha256', $token);
+            $expira    = date('Y-m-d H:i:s', strtotime('+1 hour'));
 
             $pdo->prepare("
                 INSERT INTO recuperacion_password (id_usuario, token, expira_en, ip_solicitud)
                 VALUES (:id, :token, :expira, :ip)
-            ")->execute([':id'=>$usuario['id_usuario'], ':token'=>$token, ':expira'=>$expira, ':ip'=>$ip]);
+            ")->execute([':id'=>$usuario['id_usuario'], ':token'=>$tokenHash, ':expira'=>$expira, ':ip'=>$ip]);
 
             // Construir enlace
             $enlace = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://'
@@ -77,7 +86,7 @@ if ($paso === 'restablecer' && $token) {
         WHERE r.token = :token AND r.usado = 0 AND r.expira_en > NOW()
         LIMIT 1
     ");
-    $stmt->execute([':token' => $token]);
+    $stmt->execute([':token' => hash('sha256', $token)]);
     $usuarioToken = $stmt->fetch();
     $tokenValido  = (bool)$usuarioToken;
     if (!$tokenValido) $error = 'El enlace es inválido o ya expiró. Solicita uno nuevo.';
@@ -98,7 +107,7 @@ if ($paso === 'restablecer' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         WHERE r.token = :token AND r.usado = 0 AND r.expira_en > NOW()
         LIMIT 1
     ");
-    $stmt->execute([':token' => $tokenPost]);
+    $stmt->execute([':token' => hash('sha256', $tokenPost)]);
     $reg = $stmt->fetch();
 
     if (!$reg) {
@@ -111,17 +120,17 @@ if ($paso === 'restablecer' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $tokenValido = true; $usuarioToken = $reg;
     } else {
         $hash = password_hash($nueva, PASSWORD_BCRYPT, ['cost'=>12]);
-        $pdo->prepare("UPDATE usuarios_registrados SET password_hash=:h, intentos_fallidos=0, bloqueado=0 WHERE id_usuario=:id")
+        $pdo->prepare("UPDATE usuarios_registrados SET password_hash=:h, intentos_fallidos=0, bloqueado=0, bloqueado_hasta=NULL WHERE id_usuario=:id")
             ->execute([':h'=>$hash, ':id'=>$reg['id_usuario']]);
-        $pdo->prepare("UPDATE recuperacion_password SET usado=1 WHERE token=:t")
-            ->execute([':t'=>$tokenPost]);
+        $pdo->prepare("UPDATE recuperacion_password SET usado=1 WHERE id_recuperacion=:id")
+            ->execute([':id'=>$reg['id_recuperacion']]);
         registrarLog_simple($pdo, 'password_restablecida', "Usuario: {$reg['username']}", $reg['id_usuario'], $_SERVER['REMOTE_ADDR']??'');
         $mensaje = '¡Contraseña actualizada correctamente! Ya puedes iniciar sesión.';
         $paso    = 'listo';
     }
 }
 
-function registrarLog_simple(PDO $pdo, string $accion, string $detalle, int $uid, string $ip): void {
+function registrarLog_simple(PDO $pdo, string $accion, string $detalle, ?int $uid, string $ip): void {
     try {
         $pdo->prepare("INSERT INTO log_actividad (id_usuario,accion,detalle,ip) VALUES (:u,:a,:d,:i)")
             ->execute([':u'=>$uid,':a'=>$accion,':d'=>$detalle,':i'=>$ip]);
@@ -201,7 +210,7 @@ function enviarRecuperacion(string $destino, string $nombre, string $usuario, st
     <p>Ingresa tu nueva contraseña para <strong><?= htmlspecialchars($usuarioToken['username']) ?></strong>.</p>
     <form method="POST">
       <?= campoCsrf() ?>
-      <input type="hidden" name="token" value="<?= htmlspecialchars($token ?: $_POST['token'] ?? '') ?>">
+      <input type="hidden" name="token" value="<?= htmlspecialchars($token ?: ($_POST['token'] ?? '')) ?>">
       <div class="form-group">
         <label>Nueva contraseña <small style="color:var(--text-3)">(mín. 16 caracteres)</small></label>
         <input type="password" name="nueva_password" minlength="16" required placeholder="Mínimo 16 caracteres"/>

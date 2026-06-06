@@ -58,14 +58,6 @@ $nuevoHash = password_hash($passNueva, PASSWORD_BCRYPT, ['cost'=>12]);
 $pdo->prepare("UPDATE usuarios_registrados SET password_hash=:hash WHERE id_usuario=:id")
     ->execute([':hash'=>$nuevoHash, ':id'=>$usuarioId]);
 
-// Actualizar también en cuenta_web si existe
-try {
-    $pdo->prepare("
-        UPDATE cuenta_web SET password_hash=:hash
-        WHERE id_agremiado=(SELECT id_afiliado FROM usuarios_registrados WHERE id_usuario=:id)
-    ")->execute([':hash'=>$nuevoHash, ':id'=>$usuarioId]);
-} catch (Exception $e) { /* silencioso si no existe */ }
-
 // Registrar en log
 registrarLog('cambio_password', 'El usuario cambió su contraseña');
 

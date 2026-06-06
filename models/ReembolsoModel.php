@@ -85,4 +85,13 @@ class ReembolsoModel extends Model
             [':id' => $afilId]
         );
     }
+
+    // ── Verificar que un beneficiario pertenece al afiliado ──
+    public function beneficiarioPerteneceA(int $benId, int $afilId): bool
+    {
+        return (bool) $this->scalar(
+            "SELECT 1 FROM beneficiario WHERE id_beneficiario = :ben AND id_afiliado = :afil LIMIT 1",
+            [':ben' => $benId, ':afil' => $afilId]
+        );
+    }
 }

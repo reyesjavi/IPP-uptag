@@ -67,11 +67,18 @@ if ($paso === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     WHERE ag.ci = :ci AND v.anio = YEAR(CURDATE()) AND v.estado = 'activa' LIMIT 1
                 ");
                 $vig->execute([':ci' => $u['username']]);
+
+                // Capturar el secreto TOTP aparte y NO dejar datos sensibles
+                // (hash de contraseña, secreto TOTP) dentro del array de sesión.
+                $secret = $u['totp_secret'];
+                unset($u['password_hash'], $u['totp_secret'], $u['totp_habilitado'],
+                      $u['intentos_fallidos'], $u['bloqueado']);
+
                 $_SESSION['2fa_pendiente'] = [
-                    'usuario'       => $u,
-                    'secret'        => $u['totp_secret'],
+                    'usuario'         => $u,
+                    'secret'          => $secret,
                     'vigencia_activa' => (bool) $vig->fetch(),
-                    'expira'        => time() + 300,
+                    'expira'          => time() + 300,
                 ];
                 header('Location: ' . url('login.php') . '?paso=2fa');
                 exit;

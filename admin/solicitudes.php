@@ -33,16 +33,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['accion']??'')==='aprobar') {
                 try {
                     $pdo->beginTransaction();
 
-                    // Crear cuenta web si no existe
+                    // Crear la cuenta de acceso al portal. Aprobada por un admin, la
+                    // cuenta queda verificada y activa de inmediato.
                     $pdo->prepare("
-                        INSERT IGNORE INTO cuenta_web (id_agremiado, username, password_hash)
-                        VALUES (:id, :user, :hash)
-                    ")->execute([':id'=>$idAgr, ':user'=>$sol['ci'], ':hash'=>$sol['password_hash']]);
-
-                    // También crear en usuarios_registrados para compatibilidad con el portal actual
-                    $pdo->prepare("
-                        INSERT IGNORE INTO usuarios_registrados (username, password_hash, rol, activo, id_afiliado)
-                        VALUES (:user, :hash, 'afiliado', 1,
+                        INSERT IGNORE INTO usuarios_registrados (username, password_hash, rol, activo, correo_verificado, id_afiliado)
+                        VALUES (:user, :hash, 'afiliado', 1, 1,
                             (SELECT id_afiliado FROM afiliado WHERE ci=:ci LIMIT 1))
                     ")->execute([':user'=>$sol['ci'],':hash'=>$sol['password_hash'],':ci'=>$sol['ci']]);
 
