@@ -49,6 +49,14 @@ function url(string $path = ''): string {
     return getRootUrl() . '/' . ltrim($path, '/');
 }
 
+// URL de un recurso estático con versión (?v=mtime) para invalidar la caché
+// del navegador automáticamente cada vez que el archivo cambia.
+function assetUrl(string $path): string {
+    $abs = BASE_PATH . '/' . ltrim($path, '/');
+    $ver = is_file($abs) ? '?v=' . filemtime($abs) : '';
+    return url($path) . $ver;
+}
+
 // ── Headers de seguridad HTTP (no aplicar a respuestas API/JSON) ──
 if (!defined('API_REQUEST') && !headers_sent()) {
     header('X-Frame-Options: DENY');

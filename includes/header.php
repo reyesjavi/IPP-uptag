@@ -2,6 +2,7 @@
 // includes/header.php — Portal del Profesorado
 require_once __DIR__ . '/../config/base.php';
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/branding.php';
 requiereLogin();
 $afiliado    = getAfiliado();
 $rolActual   = $_SESSION['usuario_rol'] ?? 'afiliado';
@@ -23,7 +24,7 @@ unset($_SESSION['flash_pass']);
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.14.0/tabler-icons.min.css"/>
-  <link rel="stylesheet" href="<?= url('assets/css/style.css') ?>"/>
+  <link rel="stylesheet" href="<?= assetUrl('assets/css/style.css') ?>"/>
   <style>
     /* Dropdown del usuario */
     .nav-user-wrap    { position:relative; }
@@ -36,12 +37,12 @@ unset($_SESSION['flash_pass']);
     .nav-user-wrap:hover .user-dropdown,
     .nav-user-wrap.open  .user-dropdown { display:block; }
 
-    .dropdown-header  { padding:12px 14px; border-bottom:1px solid #E2E5E2; }
-    .dropdown-name    { font-size:13px; font-weight:600; color:#1A1F1A; }
-    .dropdown-role    { font-size:11px; color:#7A847A; margin-top:2px; text-transform:uppercase; letter-spacing:.4px; }
+    .dropdown-header  { padding:13px 15px; border-bottom:1px solid #E2E5E2; }
+    .dropdown-name    { font-size:15px; font-weight:700; color:#1A2540; }
+    .dropdown-role    { font-size:12px; color:#586591; margin-top:2px; text-transform:uppercase; letter-spacing:.4px; }
     .dropdown-item    {
-      display:flex; align-items:center; gap:9px;
-      padding:10px 14px; font-size:13px; color:#4A524A;
+      display:flex; align-items:center; gap:10px;
+      padding:12px 15px; font-size:15px; color:#3D4F7A;
       text-decoration:none; cursor:pointer;
       border:none; background:none; width:100%; font-family:'Nunito',sans-serif;
       transition:background .12s;
@@ -64,7 +65,7 @@ unset($_SESSION['flash_pass']);
 
 <nav class="nav">
   <a class="nav-brand" href="<?= url('dashboard.php') ?>">
-    <div class="nav-logo">IPP</div>
+    <?= logoIPP('nav') ?>
     <div>
       <div class="nav-name">IPP - UPTAG</div>
       <div class="nav-sub">Portal del Profesorado</div>
@@ -135,28 +136,28 @@ unset($_SESSION['flash_pass']);
     <form method="POST" action="<?= url('cambiar_password.php') ?>">
       <?= campoCsrf() ?>
       <div class="fl" style="margin-bottom:.9rem">
-        <label style="font-size:12px;font-weight:600;color:#4A524A;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Contraseña actual</label>
+        <label style="font-size:13px;font-weight:600;color:#3D4F7A;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Contraseña actual</label>
         <input type="password" name="pass_actual" required
-               style="width:100%;padding:9px 12px;border:1.5px solid #E2E5E2;border-radius:8px;font-size:13px;font-family:'Nunito',sans-serif;outline:none"/>
+               style="width:100%;padding:12px 14px;border:1.5px solid #C4CDEA;border-radius:8px;font-size:16px;font-family:'Nunito',sans-serif;outline:none"/>
       </div>
       <div class="fl" style="margin-bottom:.9rem">
-        <label style="font-size:12px;font-weight:600;color:#4A524A;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Nueva contraseña</label>
+        <label style="font-size:13px;font-weight:600;color:#3D4F7A;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Nueva contraseña</label>
         <input type="password" name="pass_nueva" id="passNueva" required minlength="16"
-               style="width:100%;padding:9px 12px;border:1.5px solid #E2E5E2;border-radius:8px;font-size:13px;font-family:'Nunito',sans-serif;outline:none"/>
+               style="width:100%;padding:12px 14px;border:1.5px solid #C4CDEA;border-radius:8px;font-size:16px;font-family:'Nunito',sans-serif;outline:none"/>
       </div>
       <div class="fl" style="margin-bottom:1.2rem">
-        <label style="font-size:12px;font-weight:600;color:#4A524A;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Confirmar nueva contraseña</label>
+        <label style="font-size:13px;font-weight:600;color:#3D4F7A;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Confirmar nueva contraseña</label>
         <input type="password" name="pass_confirmar" id="passConfirmar" required minlength="16"
-               style="width:100%;padding:9px 12px;border:1.5px solid #E2E5E2;border-radius:8px;font-size:13px;font-family:'Nunito',sans-serif;outline:none"/>
+               style="width:100%;padding:12px 14px;border:1.5px solid #C4CDEA;border-radius:8px;font-size:16px;font-family:'Nunito',sans-serif;outline:none"/>
       </div>
       <div id="passError" style="display:none;color:#A32D2D;font-size:13px;margin-bottom:.8rem"></div>
       <div style="display:flex;gap:10px">
         <button type="submit" onclick="return validarPass()"
-                style="flex:1;padding:10px;background:#0F6E56;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;font-family:'Nunito',sans-serif;cursor:pointer">
+                style="flex:1;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer">
           <i class="ti ti-check"></i> Guardar cambios
         </button>
         <button type="button" onclick="cerrarCambioPass()"
-                style="padding:10px 16px;background:none;border:1.5px solid #E2E5E2;border-radius:8px;font-size:13px;font-family:'Nunito',sans-serif;cursor:pointer">
+                style="padding:13px 18px;background:none;border:1.5px solid #C4CDEA;border-radius:8px;font-size:15px;font-family:'Nunito',sans-serif;cursor:pointer">
           Cancelar
         </button>
       </div>

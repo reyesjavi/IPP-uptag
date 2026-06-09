@@ -3,6 +3,7 @@
 require_once __DIR__ . '/config/base.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/auth.php';   // verificarRateLimitIP()
+require_once __DIR__ . '/includes/branding.php';
 require_once __DIR__ . '/lib/phpmailer/Exception.php';
 require_once __DIR__ . '/lib/phpmailer/PHPMailer.php';
 require_once __DIR__ . '/lib/phpmailer/SMTP.php';
@@ -177,7 +178,7 @@ function enviarRecuperacion(string $destino, string $nombre, string $usuario, st
   <title>Recuperar Contraseña — UPTAG</title>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.14.0/tabler-icons.min.css"/>
-  <link rel="stylesheet" href="<?= url('assets/css/style.css') ?>"/>
+  <link rel="stylesheet" href="<?= assetUrl('assets/css/style.css') ?>"/>
   <style>
     body { background:var(--bg); display:flex; align-items:center; justify-content:center; min-height:100vh; }
     .rec-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:2.5rem 2rem; width:420px; max-width:95vw; box-shadow:var(--shadow-md); }
@@ -188,7 +189,7 @@ function enviarRecuperacion(string $destino, string $nombre, string $usuario, st
 <body>
 <div class="rec-card">
   <div style="text-align:center;margin-bottom:1.5rem">
-    <div class="nav-logo" style="margin:0 auto 1rem;width:46px;height:46px">UP</div>
+    <div style="margin:0 auto 1rem;display:flex;justify-content:center"><?= logoIPP('nav') ?></div>
     <h2>Recuperar contraseña</h2>
   </div>
 

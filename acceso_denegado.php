@@ -10,7 +10,7 @@ require_once __DIR__ . '/includes/auth.php';
   <title>Acceso Denegado — UPTAG</title>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Nunito:wght@400;500;600&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.14.0/tabler-icons.min.css"/>
-  <link rel="stylesheet" href="<?= url('assets/css/style.css') ?>"/>
+  <link rel="stylesheet" href="<?= assetUrl('assets/css/style.css') ?>"/>
 </head>
 <body style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)">
   <div style="text-align:center;padding:3rem">

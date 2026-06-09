@@ -19,6 +19,8 @@
 }
 .sidebar-brand .nav-name { color: #fff; }
 .sidebar-brand .nav-sub  { color: rgba(255,255,255,.6); }
+/* El logo institucional en la barra lateral, a escala compacta */
+.sidebar-brand .brand-logo--nav { width: 40px; height: 40px; }
 
 .sidebar-nav     { flex: 1; padding: 1rem 0.75rem; display: flex; flex-direction: column; gap: 2px; }
 .sidebar-section { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,.45); padding: 1rem 0.5rem 0.4rem; }

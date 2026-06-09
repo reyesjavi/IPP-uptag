@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/config/base.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/branding.php';
 require_once __DIR__ . '/lib/totp.php';
 
 if (estaAutenticado()) { redirigirSegunRol(); }
@@ -104,11 +105,11 @@ $ciIsCI    = ($ciDisplay === '' || ctype_digit($ciDisplay));
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.14.0/tabler-icons.min.css"/>
-  <link rel="stylesheet" href="<?= url('assets/css/style.css') ?>"/>
+  <link rel="stylesheet" href="<?= assetUrl('assets/css/style.css') ?>"/>
 </head>
 <body>
 <div class="login-page">
-  <div class="login-left"><div class="bg-circle-1"></div><div class="bg-circle-2"></div><div class="ipp-logo-big"><span>IPP</span></div><p class="inst-name">Instituto de Previsión del Profesorado del UPTAG</p>
+  <div class="login-left"><div class="bg-circle-1"></div><div class="bg-circle-2"></div><?= logoIPP('hero') ?><p class="inst-name">Instituto de Previsión del Profesorado del UPTAG</p>
     <h1>Portal de Servicios<br><span>del Profesorado</span></h1>
     <p>Gestiona tu afiliación, reembolsos médicos, cartas aval y servicios de salud desde un solo lugar.</p>
     <div class="feat-list">

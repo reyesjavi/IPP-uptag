@@ -2,6 +2,7 @@
 // admin/header.php
 require_once __DIR__ . '/../config/base.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/branding.php';
 requiereRol('admin','administrativo');
 
 $nombreCorto = $_SESSION['afiliado_nombre'] ?? ($_SESSION['usuario_ci'] ?? 'Admin');
@@ -22,8 +23,8 @@ unset($_SESSION['flash_admin']);
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.14.0/tabler-icons.min.css"/>
-  <link rel="stylesheet" href="<?= url('assets/css/style.css') ?>"/>
-  <link rel="stylesheet" href="<?= url('assets/css/admin.css') ?>"/>
+  <link rel="stylesheet" href="<?= assetUrl('assets/css/style.css') ?>"/>
+  <link rel="stylesheet" href="<?= assetUrl('assets/css/admin.css') ?>"/>
 </head>
 <body class="admin-body">
 <div class="admin-layout">
@@ -31,7 +32,7 @@ unset($_SESSION['flash_admin']);
 <!-- ── SIDEBAR ── -->
 <aside class="sidebar">
   <div class="sidebar-brand">
-    <div class="nav-logo" style="width:38px;height:38px;font-size:13px">UP</div>
+    <?= logoIPP('nav') ?>
     <div>
       <div class="nav-name" style="font-size:14px">IPP Admin</div>
       <div class="nav-sub"><?= $rol==='admin' ? 'Administrador' : 'Administrativo' ?></div>
