@@ -29,7 +29,7 @@
   /* Texto */
   --text:      #1A2540;        /* Azul muy oscuro para texto */
   --text-2:    #3D4F7A;
-  --text-3:    #7A8AB0;
+  --text-3:    #586591;        /* Gris secundario — oscurecido para contraste AA (≥4.5:1 sobre blanco) */
 
   /* Misc */
   --blue:          #185FA5;
@@ -50,10 +50,36 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  font-size: 15px;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
 }
 
 a { text-decoration: none; color: inherit; }
+
+/* Accesibilidad: foco visible por teclado en todo elemento interactivo.
+   Pensado para personas de cualquier edad y navegación sin ratón. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* Respetar la preferencia de "reducir movimiento" del sistema operativo. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* =============================================
    NAVEGACIÓN
@@ -96,19 +122,19 @@ a { text-decoration: none; color: inherit; }
 
 .nav-name {
   font-family: 'Syne', sans-serif; font-weight: 700;
-  font-size: 15px; color: #fff;
+  font-size: 17px; color: #fff;
   letter-spacing: .2px;
 }
 .nav-sub {
-  font-size: 10px; color: rgba(255,255,255,.6);
+  font-size: 11px; color: rgba(255,255,255,.7);
   letter-spacing: 1.2px; text-transform: uppercase;
   margin-top: 1px;
 }
 
 .nav-links { display: flex; gap: 2px; }
 .nav-links a {
-  padding: 6px 14px; border-radius: var(--radius-xs);
-  color: rgba(255,255,255,.75); font-size: 14px; font-weight: 600;
+  padding: 10px 16px; border-radius: var(--radius-xs);
+  color: rgba(255,255,255,.85); font-size: 15px; font-weight: 600;
   transition: background .15s, color .15s;
   letter-spacing: .2px;
 }
@@ -127,8 +153,8 @@ a { text-decoration: none; color: inherit; }
   transition: background .15s; cursor: pointer;
 }
 .nav-user:hover { background: rgba(255,255,255,.1); }
-.nav-user span { color: rgba(255,255,255,.9); font-size: 14px; font-weight: 600; }
-.nav-user i    { font-size: 14px; color: rgba(255,255,255,.6); }
+.nav-user span { color: rgba(255,255,255,.92); font-size: 15px; font-weight: 600; }
+.nav-user i    { font-size: 15px; color: rgba(255,255,255,.7); }
 
 .avatar {
   width: 34px; height: 34px; border-radius: 50%;
@@ -163,13 +189,13 @@ a { text-decoration: none; color: inherit; }
 .sc { border-top: 3px solid var(--primary-light); }
 
 .card-title {
-  font-size: 15px; font-weight: 700; color: var(--text);
+  font-size: 17px; font-weight: 700; color: var(--text);
   margin-bottom: 1rem;
   display: flex; align-items: center; justify-content: space-between;
   padding-bottom: .75rem;
   border-bottom: 1px solid var(--border);
 }
-.card-title span { color: var(--text-3); font-weight: 400; font-size: 13px; }
+.card-title span { color: var(--text-3); font-weight: 400; font-size: 14px; }
 .sc h3 {
   font-size: 14px; font-weight: 700; color: var(--primary);
   margin-bottom: 1rem;
@@ -190,9 +216,9 @@ a { text-decoration: none; color: inherit; }
   transition: transform .15s, box-shadow .15s;
 }
 .metric:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-.metric-label { font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--text-3); margin-bottom: 8px; font-weight: 700; }
-.metric-val   { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; color: var(--primary); }
-.metric-sub   { font-size: 12px; margin-top: 5px; }
+.metric-label { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-3); margin-bottom: 8px; font-weight: 700; }
+.metric-val   { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; color: var(--primary); }
+.metric-sub   { font-size: 13px; margin-top: 6px; }
 .metric-sub.up   { color: var(--green); }
 .metric-sub.down { color: var(--red); }
 
@@ -207,7 +233,7 @@ a { text-decoration: none; color: inherit; }
 /* =============================================
    BADGES
 ============================================= */
-.badge        { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+.badge        { display: inline-block; padding: 4px 11px; border-radius: 20px; font-size: 13px; font-weight: 700; }
 .badge-green  { background: var(--green-light); color: var(--green); }
 .badge-amber  { background: var(--gold-light);  color: var(--gold); }
 .badge-red    { background: var(--red-light);   color: var(--red); }
@@ -270,16 +296,16 @@ a { text-decoration: none; color: inherit; }
 .form-group { margin-bottom: 1.1rem; }
 .form-group label,
 .fl label {
-  display: block; font-size: 11px; font-weight: 700;
-  color: var(--primary); margin-bottom: 6px;
-  text-transform: uppercase; letter-spacing: .7px;
+  display: block; font-size: 13px; font-weight: 700;
+  color: var(--primary); margin-bottom: 7px;
+  text-transform: uppercase; letter-spacing: .5px;
 }
 .form-group input, .form-group select,
 .fl input, .fl select, .fl textarea {
-  width: 100%; padding: 10px 14px;
-  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  width: 100%; padding: 13px 14px; min-height: 48px;
+  border: 1.5px solid var(--border-2); border-radius: var(--radius-sm);
   background: #fff; color: var(--text);
-  font-size: 14px; font-family: 'Nunito', sans-serif;
+  font-size: 16px; font-family: 'Nunito', sans-serif;
   transition: border-color .2s, box-shadow .2s; outline: none;
 }
 .form-group input:focus, .form-group select:focus,
@@ -303,8 +329,8 @@ a { text-decoration: none; color: inherit; }
 }
 .ci-prefix {
   display: flex; align-items: center;
-  padding: 0 10px 0 13px;
-  font-size: 14px; font-weight: 700; color: var(--text-2);
+  padding: 0 12px 0 15px;
+  font-size: 16px; font-weight: 700; color: var(--text-2);
   background: var(--surface-2); border-right: 1.5px solid var(--border);
   user-select: none; white-space: nowrap;
 }
@@ -312,7 +338,7 @@ a { text-decoration: none; color: inherit; }
   flex: 1; min-width: 0;
   border: none !important; outline: none !important; box-shadow: none !important;
   background: transparent;
-  padding: 10px 14px; font-size: 14px;
+  padding: 13px 14px; font-size: 16px;
   color: var(--text); font-family: 'Nunito', sans-serif;
 }
 .ci-group input::placeholder { color: var(--text-3); }
@@ -324,9 +350,9 @@ a { text-decoration: none; color: inherit; }
    BOTONES
 ============================================= */
 .btn-primary {
-  width: 100%; padding: 12px; background: var(--primary); color: #fff;
+  width: 100%; padding: 14px; min-height: 52px; background: var(--primary); color: #fff;
   border: none; border-radius: var(--radius-sm);
-  font-size: 15px; font-weight: 700; font-family: 'Nunito', sans-serif;
+  font-size: 16px; font-weight: 700; font-family: 'Nunito', sans-serif;
   cursor: pointer; transition: background .15s, transform .1s;
   letter-spacing: .3px;
 }
@@ -334,10 +360,10 @@ a { text-decoration: none; color: inherit; }
 .btn-primary:active { transform: translateY(0); }
 
 .btn {
-  padding: 9px 18px; border-radius: var(--radius-sm); font-size: 14px;
+  padding: 11px 20px; min-height: 44px; border-radius: var(--radius-sm); font-size: 15px;
   font-weight: 700; cursor: pointer; font-family: 'Nunito', sans-serif;
   border: none; transition: all .15s;
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   letter-spacing: .2px;
 }
 .btn-teal    { background: var(--primary); color: #fff; }
@@ -350,7 +376,7 @@ a { text-decoration: none; color: inherit; }
 .btn-row  { display: flex; gap: 10px; flex-wrap: wrap; }
 .btn-link {
   background: none; border: none; color: var(--primary);
-  font-size: 14px; cursor: pointer; font-family: 'Nunito', sans-serif;
+  font-size: 15px; cursor: pointer; font-family: 'Nunito', sans-serif;
   font-weight: 600;
 }
 .btn-link:hover { text-decoration: underline; }
@@ -388,8 +414,8 @@ tbody tr:hover td { background: var(--primary-light); }
 .act-item { display: flex; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 .act-item:last-child { border-bottom: none; padding-bottom: 0; }
 .act-dot  { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); margin-top: 6px; flex-shrink: 0; }
-.act-text { font-size: 14px; color: var(--text); line-height: 1.5; }
-.act-time { font-size: 12px; color: var(--text-3); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+.act-text { font-size: 15px; color: var(--text); line-height: 1.5; }
+.act-time { font-size: 13px; color: var(--text-3); margin-top: 4px; display: flex; align-items: center; gap: 6px; }
 
 .news-list  { display: flex; flex-direction: column; gap: 10px; }
 .news-item  {
@@ -421,11 +447,11 @@ tbody tr:hover td { background: var(--primary-light); }
   transform: translateY(-2px); box-shadow: var(--shadow-md);
 }
 .module-icon {
-  width: 44px; height: 44px; border-radius: var(--radius-sm);
+  width: 50px; height: 50px; border-radius: var(--radius-sm);
   display: flex; align-items: center; justify-content: center;
-  font-size: 20px; background: var(--primary-light); color: var(--primary);
+  font-size: 24px; background: var(--primary-light); color: var(--primary);
 }
-.module-btn p { font-size: 12px; font-weight: 700; color: var(--text-2); }
+.module-btn p { font-size: 14px; font-weight: 700; color: var(--text-2); }
 
 /* =============================================
    DIRECTORIO
@@ -571,6 +597,32 @@ hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
   font-size: 28px; color: #fff; letter-spacing: 2px;
 }
 
+/* =============================================
+   LOGO INSTITUCIONAL (imagen real con fallback de texto)
+   Generado por includes/branding.php → logoIPP()
+============================================= */
+.brand-logo            { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; line-height: 0; }
+.brand-logo__img       { display: block; width: 100%; height: 100%; object-fit: contain; }
+.brand-logo__fallback  { display: none; }                 /* oculto mientras la imagen cargue bien */
+.brand-logo.is-fallback .brand-logo__img      { display: none; }
+.brand-logo.is-fallback .brand-logo__fallback { display: flex; }
+
+/* Variante de barra de navegación (chip blanco para que cualquier
+   versión del logo resalte sobre el azul institucional) */
+.brand-logo--nav { width: 54px; height: 54px; }
+.brand-logo--nav .brand-logo__img {
+  background: #fff; border-radius: 12px; padding: 3px;
+  box-shadow: 0 0 0 3px rgba(255,255,255,.15);
+}
+
+/* Variante grande del panel de login */
+.brand-logo--hero { width: 140px; height: 140px; margin-bottom: 2rem; }
+.brand-logo--hero .brand-logo__img {
+  background: #fff; border-radius: 24px; padding: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+.brand-logo--hero .brand-logo__fallback.ipp-logo-big { margin-bottom: 0; }
+
 .login-left h1 {
   font-family: 'Syne', sans-serif; font-weight: 800;
   font-size: 30px; color: #fff; line-height: 1.25; margin-bottom: .75rem;
@@ -581,7 +633,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
   letter-spacing: 1.5px; text-transform: uppercase;
   margin-bottom: 1.5rem; font-weight: 600;
 }
-.login-left > p { font-size: 14px; color: rgba(255,255,255,.75); line-height: 1.7; margin-bottom: 2.5rem; }
+.login-left > p { font-size: 16px; color: rgba(255,255,255,.8); line-height: 1.7; margin-bottom: 2.5rem; }
 
 .feat-list { display: flex; flex-direction: column; gap: 12px; }
 .feat-item { display: flex; align-items: center; gap: 12px; }
@@ -590,8 +642,8 @@ hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
   background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.15);
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.feat-icon i { font-size: 17px; color: var(--accent-2); }
-.feat-item p { font-size: 14px; color: rgba(255,255,255,.85); font-weight: 500; }
+.feat-icon i { font-size: 19px; color: var(--accent-2); }
+.feat-item p { font-size: 16px; color: rgba(255,255,255,.9); font-weight: 500; }
 
 .login-right {
   background: #fff;
@@ -611,10 +663,10 @@ hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
 }
 
 .login-right h2 {
-  font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800;
+  font-family: 'Syne', sans-serif; font-size: 27px; font-weight: 800;
   color: var(--primary); margin-bottom: 6px;
 }
-.login-right > p { font-size: 14px; color: var(--text-3); margin-bottom: 2rem; }
+.login-right > p { font-size: 16px; color: var(--text-3); margin-bottom: 2rem; }
 .login-links { display: flex; justify-content: center; gap: 16px; margin-top: 1.2rem; flex-wrap: wrap; }
 
 /* =============================================
@@ -635,10 +687,10 @@ hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
   background: rgba(255,255,255,.06);
 }
 .dash-hello h2 {
-  font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800;
+  font-family: 'Syne', sans-serif; font-size: 27px; font-weight: 800;
   color: #fff;
 }
-.dash-hello p  { font-size: 14px; color: rgba(255,255,255,.7); margin-top: 5px; }
+.dash-hello p  { font-size: 16px; color: rgba(255,255,255,.82); margin-top: 6px; }
 .dash-hello a  { color: var(--accent-2); font-weight: 700; }
 .dash-grid     { display: grid; grid-template-columns: 1.6fr 1fr; gap: 1.2rem; }
 
@@ -703,7 +755,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
   .login-right h2 { font-size: 20px; }
   .tab-bar { overflow-x: auto; white-space: nowrap; padding-bottom: 4px; }
   .modal { width: 95vw; padding: 1.25rem; }
-  body { font-size: 15px; }
+  body { font-size: 16px; }
   .admin-table thead th:nth-child(n+5) { display: none; }
   .admin-table tbody td:nth-child(n+5) { display: none; }
 }

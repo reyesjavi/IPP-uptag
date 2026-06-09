@@ -137,8 +137,8 @@ require_once __DIR__ . '/includes/header.php';
       <div class="card-title">Actividad reciente <span>Últimos movimientos</span></div>
       <div class="activity-list">
         <?php if (empty($actividad)): ?>
-          <p style="font-size:13px;color:var(--text-3);text-align:center;padding:1rem 0">
-            <i class="ti ti-inbox" style="font-size:24px;display:block;margin-bottom:6px"></i>
+          <p style="font-size:15px;color:var(--text-3);text-align:center;padding:1rem 0">
+            <i class="ti ti-inbox" style="font-size:28px;display:block;margin-bottom:6px"></i>
             Sin actividad reciente
           </p>
         <?php else: ?>
