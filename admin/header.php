@@ -29,6 +29,9 @@ unset($_SESSION['flash_admin']);
 <body class="admin-body">
 <div class="admin-layout">
 
+<!-- Capa oscura para cerrar el sidebar en móvil -->
+<div class="admin-overlay" id="adminOverlay"></div>
+
 <!-- ── SIDEBAR ── -->
 <aside class="sidebar">
   <div class="sidebar-brand">
@@ -91,11 +94,16 @@ unset($_SESSION['flash_admin']);
 <!-- ── CONTENIDO ── -->
 <div class="admin-content">
 <header class="admin-topbar">
-  <div class="topbar-title">
-    <h1><?= htmlspecialchars($pageTitle??'Panel') ?></h1>
-    <?php if (!empty($pageSubtitle)): ?>
-      <p><?= htmlspecialchars($pageSubtitle) ?></p>
-    <?php endif; ?>
+  <div style="display:flex;align-items:center;gap:8px;min-width:0">
+    <button class="admin-menu-toggle" id="adminMenuToggle" aria-label="Abrir menú" aria-expanded="false">
+      <i class="ti ti-menu-2" aria-hidden="true"></i>
+    </button>
+    <div class="topbar-title">
+      <h1><?= htmlspecialchars($pageTitle??'Panel') ?></h1>
+      <?php if (!empty($pageSubtitle)): ?>
+        <p><?= htmlspecialchars($pageSubtitle) ?></p>
+      <?php endif; ?>
+    </div>
   </div>
   <div class="topbar-user">
     <div class="avatar" style="background:var(--primary-light);color:var(--primary);width:34px;height:34px;font-size:13px">

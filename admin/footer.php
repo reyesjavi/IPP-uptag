@@ -2,6 +2,6 @@
 </main>
 </div><!-- /.admin-content -->
 </div><!-- /.admin-layout -->
-<script src="<?= url('assets/js/app.js') ?>"></script>
+<script src="<?= assetUrl('assets/js/app.js') ?>"></script>
 </body>
 </html>

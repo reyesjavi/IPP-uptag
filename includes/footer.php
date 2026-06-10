@@ -8,6 +8,6 @@
   &middot; Portal IPP-UPTAG &copy; <?= date('Y') ?>
 </div>
 
-<script src="<?= url('assets/js/app.js') ?>"></script>
+<script src="<?= assetUrl('assets/js/app.js') ?>"></script>
 </body>
 </html>
