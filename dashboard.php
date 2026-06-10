@@ -46,6 +46,30 @@ if ($afilId) {
     $actividad = $stmtAct->fetchAll();
 }
 
+// Beneficios habilitados del afiliado + médicos/centros que los prestan, con su horario.
+// LEFT JOIN: un beneficio sin proveedores activos también aparece (lista vacía).
+$esAfiliado = ($rolActual !== 'admin' && $rolActual !== 'administrativo');
+$beneficios = [];
+if ($afilId && $esAfiliado) {
+    $stmtBen = $pdo->prepare("
+        SELECT s.id_servicio, s.tipo_servicio,
+               m.id_medico, m.tipo AS prov_tipo, m.nombre, m.apellido,
+               m.especialidad, m.numero_contacto, m.direccion, m.horario, m.convenio
+        FROM afiliado_servicio afs
+        JOIN servicio s    ON s.id_servicio = afs.id_servicio
+        LEFT JOIN medico m ON m.id_servicio = s.id_servicio AND m.activo = 1
+        WHERE afs.id_afiliado = :id AND afs.habilitado = 1
+        ORDER BY s.tipo_servicio, m.tipo, m.apellido, m.nombre
+    ");
+    $stmtBen->execute([':id'=>$afilId]);
+    foreach ($stmtBen->fetchAll() as $row) {
+        $srv = $row['tipo_servicio'];
+        if (!isset($beneficios[$srv])) { $beneficios[$srv] = []; }
+        // id_medico null = el beneficio no tiene proveedores activos asignados todavía
+        if ($row['id_medico'] !== null) { $beneficios[$srv][] = $row; }
+    }
+}
+
 // Nombre a mostrar — priorizar sesión actualizada, luego afiliado, luego CI
 $nombreCompleto = trim(($afiliado['nombre'] ?? '') . ' ' . ($afiliado['apellido'] ?? ''));
 if (!$nombreCompleto) {
@@ -73,6 +97,72 @@ require_once __DIR__ . '/includes/header.php';
       <?php endif; ?>
     </p>
   </div>
+
+  <?php if ($esAfiliado): ?>
+  <div class="card" style="margin-bottom:1.2rem">
+    <div class="card-title">
+      <span><i class="ti ti-shield-check" style="color:var(--primary);margin-right:6px"></i>Mis beneficios y horarios</span>
+      <span>Servicios cubiertos por tu plan y disponibilidad</span>
+    </div>
+
+    <?php if (empty($beneficios)): ?>
+      <div style="text-align:center;padding:2rem;color:var(--text-3)">
+        <i class="ti ti-shield" style="font-size:32px;display:block;margin-bottom:.5rem"></i>
+        Aún no tienes beneficios habilitados. Contacta a la administración del IPP para activarlos.
+        <div style="margin-top:1rem">
+          <a href="<?= url('directorio.php') ?>" class="btn btn-teal" style="display:inline-flex">
+            <i class="ti ti-address-book"></i> Ver directorio médico
+          </a>
+        </div>
+      </div>
+    <?php else: ?>
+      <?php foreach ($beneficios as $tipoSrv => $proveedores): ?>
+        <div style="margin-bottom:1.25rem">
+          <h3 style="font-size:15px;font-weight:700;color:var(--primary);margin-bottom:.75rem;display:flex;align-items:center;gap:8px">
+            <i class="ti ti-heartbeat"></i> <?= htmlspecialchars($tipoSrv) ?>
+          </h3>
+          <?php if (empty($proveedores)): ?>
+            <p style="font-size:14px;color:var(--text-3);padding-left:4px">
+              <i class="ti ti-info-circle"></i> Beneficio activo — sin proveedores asignados aún.
+            </p>
+          <?php else: ?>
+            <div class="dir-grid">
+              <?php foreach ($proveedores as $p):
+                $esCentro   = ($p['prov_tipo'] === 'centro');
+                $nombreProv = trim(($p['nombre'] ?? '') . ' ' . ($p['apellido'] ?? ''));
+                if (!$esCentro) { $nombreProv = 'Dr(a). ' . $nombreProv; }
+                $spec = trim(($p['especialidad'] ?? '') . ($p['convenio'] ? ' · ' . $p['convenio'] : ''), " ·");
+              ?>
+              <div class="dir-card">
+                <div class="dir-name">
+                  <?= htmlspecialchars($nombreProv) ?>
+                  <span class="badge <?= $esCentro ? 'badge-blue' : 'badge-green' ?>" style="margin-left:6px"><?= $esCentro ? 'Centro' : 'Médico' ?></span>
+                </div>
+                <?php if ($spec): ?><div class="dir-spec"><?= htmlspecialchars($spec) ?></div><?php endif; ?>
+                <div class="dir-info">
+                  <i class="ti ti-clock"></i>
+                  <?= $p['horario'] ? htmlspecialchars($p['horario']) : '<span style="color:var(--text-3)">Horario no especificado</span>' ?>
+                </div>
+                <?php if (!empty($p['direccion'])): ?><div class="dir-info"><i class="ti ti-map-pin"></i> <?= htmlspecialchars($p['direccion']) ?></div><?php endif; ?>
+                <?php if (!empty($p['numero_contacto'])): ?><div class="dir-info"><i class="ti ti-phone"></i> <?= htmlspecialchars($p['numero_contacto']) ?></div><?php endif; ?>
+              </div>
+              <?php endforeach; ?>
+            </div>
+          <?php endif; ?>
+        </div>
+      <?php endforeach; ?>
+
+      <div class="btn-row" style="margin-top:.25rem;padding-top:1rem;border-top:1px solid var(--border)">
+        <a href="<?= url('directorio.php') ?>" class="btn btn-teal" style="display:inline-flex">
+          <i class="ti ti-address-book"></i> Ver directorio completo
+        </a>
+        <a href="<?= url('salud.php?tab=srv') ?>" class="btn btn-outline" style="display:inline-flex">
+          <i class="ti ti-shield-check"></i> Gestionar mis servicios
+        </a>
+      </div>
+    <?php endif; ?>
+  </div>
+  <?php endif; ?>
 
   <div class="metrics">
     <div class="metric">
