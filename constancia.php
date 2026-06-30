@@ -62,10 +62,10 @@ class ConstanciaPDF extends FPDF
         $this->SetFont('Helvetica', 'B', 13);
         $this->SetTextColor(255, 255, 255);
         $this->SetXY(10, 7);
-        $this->Cell(190, 7, 'INSTITUTO DE PREVISIÓN DEL PROFESORADO', 0, 1, 'C');
+        $this->Cell(190, 7, w('INSTITUTO DE PREVISIÓN DEL PROFESORADO'), 0, 1, 'C');
         $this->SetFont('Helvetica', '', 9);
         $this->SetXY(10, 15);
-        $this->Cell(190, 6, 'Universidad Politécnica Territorial Alonso Gamero — UPTAG', 0, 1, 'C');
+        $this->Cell(190, 6, w('Universidad Politécnica Territorial Alonso Gamero — UPTAG'), 0, 1, 'C');
         $this->SetTextColor(0, 0, 0);
         $this->SetY(35);
     }
@@ -75,8 +75,8 @@ class ConstanciaPDF extends FPDF
         $this->SetY(-18);
         $this->SetFont('Helvetica', 'I', 8);
         $this->SetTextColor(130, 130, 130);
-        $this->Cell(0, 5, 'Documento generado electrónicamente — IPP-UPTAG', 0, 1, 'C');
-        $this->Cell(0, 5, 'Página ' . $this->PageNo() . ' de {nb}', 0, 0, 'C');
+        $this->Cell(0, 5, w('Documento generado electrónicamente — IPP-UPTAG'), 0, 1, 'C');
+        $this->Cell(0, 5, w('Página ' . $this->PageNo() . ' de {nb}'), 0, 0, 'C');
     }
 }
 
@@ -116,7 +116,7 @@ $pdf->AddPage();
 // Título
 $pdf->SetFont('Helvetica', 'B', 16);
 $pdf->SetTextColor(30, 54, 123);
-$pdf->Cell(0, 10, 'CONSTANCIA DE AFILIACIÓN', 0, 1, 'C');
+$pdf->Cell(0, 10, w('CONSTANCIA DE AFILIACIÓN'), 0, 1, 'C');
 
 $pdf->SetFont('Helvetica', '', 9);
 $pdf->SetTextColor(110, 110, 110);
