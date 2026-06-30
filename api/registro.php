@@ -151,6 +151,12 @@ try {
     $datosAgr->execute([':id' => $idAgremiado]);
     $ag = $datosAgr->fetch();
 
+    // El afiliado se materializa AHORA aunque la cuenta acabe pendiente de
+    // aprobación (ruta "sin correo en ficha"): la aprobación del admin en
+    // admin/solicitudes.php vincula la cuenta con `(SELECT id_afiliado ... WHERE ci)`,
+    // por lo que el afiliado ya debe existir. Lo único que queda en cola es el
+    // acceso al portal (usuarios_registrados), no el registro de afiliado.
+
     // 1) Buscar si ya existe un afiliado con esa CI
     $stmtAfil = $pdo->prepare("SELECT id_afiliado FROM afiliado WHERE ci = :ci LIMIT 1");
     $stmtAfil->execute([':ci' => $ci]);
@@ -308,9 +314,7 @@ function crearTokenVerificacion(PDO $pdo, int $idUsuario): string {
 }
 
 function enviarCorreoVerificacion(string $destino, string $nombre, string $usuario, string $tokenPlano): void {
-    $enlace = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://'
-            . ($_SERVER['HTTP_HOST'] ?? '')
-            . url('verificar_correo.php') . '?token=' . $tokenPlano;
+    $enlace = absoluteUrl('verificar_correo.php') . '?token=' . $tokenPlano;
 
     $cuerpo = "Hola $nombre,\n\n"
             . "Recibimos una solicitud para crear tu cuenta en el portal IPP-UPTAG ($usuario).\n\n"

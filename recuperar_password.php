@@ -4,11 +4,7 @@ require_once __DIR__ . '/config/base.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/auth.php';   // verificarRateLimitIP()
 require_once __DIR__ . '/includes/branding.php';
-require_once __DIR__ . '/lib/phpmailer/Exception.php';
-require_once __DIR__ . '/lib/phpmailer/PHPMailer.php';
-require_once __DIR__ . '/lib/phpmailer/SMTP.php';
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\SMTP;
+require_once __DIR__ . '/includes/mailer.php'; // enviarCorreo()
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 
@@ -62,12 +58,10 @@ if ($paso === 'solicitar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 VALUES (:id, :token, :expira, :ip)
             ")->execute([':id'=>$usuario['id_usuario'], ':token'=>$tokenHash, ':expira'=>$expira, ':ip'=>$ip]);
 
-            // Construir enlace
-            $enlace = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://'
-                    . $_SERVER['HTTP_HOST']
-                    . url('recuperar_password.php') . '?paso=restablecer&token=' . $token;
+            // Construir enlace (URL canónica para evitar Host header injection)
+            $enlace = absoluteUrl('recuperar_password.php') . '?paso=restablecer&token=' . $token;
 
-            // Enviar email con PHPMailer
+            // Enviar email con el enlace de recuperación
             enviarRecuperacion($usuario['correo'], $usuario['nombre'], $usuario['username'], $enlace);
 
             registrarLog_simple($pdo, 'recuperacion_solicitada', "CI: $ci", $usuario['id_usuario'], $ip);
@@ -139,35 +133,15 @@ function registrarLog_simple(PDO $pdo, string $accion, string $detalle, ?int $ui
 }
 
 function enviarRecuperacion(string $destino, string $nombre, string $usuario, string $enlace): void {
-    $mail = new PHPMailer(true);
-    try {
-        $mail->isSMTP();
-        $mail->Host       = getenv('MAIL_HOST') ?: 'smtp.gmail.com';
-        $mail->SMTPAuth   = true;
-        $mail->Username   = getenv('MAIL_USER') ?: '';
-        $mail->Password   = getenv('MAIL_PASS') ?: '';
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = (int)(getenv('MAIL_PORT') ?: 587);
-        $mail->CharSet    = 'UTF-8';
+    $cuerpo = "Hola $nombre,\n\n"
+            . "Recibimos una solicitud para restablecer la contraseña de tu cuenta ($usuario).\n\n"
+            . "Haz clic en el siguiente enlace para establecer una nueva contraseña:\n"
+            . "$enlace\n\n"
+            . "Este enlace expirará en 1 hora.\n\n"
+            . "Si no solicitaste este cambio, ignora este mensaje.\n\n"
+            . "— Sistema IPP-UPTAG";
 
-        $fromName = getenv('MAIL_FROM_NAME') ?: 'IPP UPTAG';
-        $fromAddr = getenv('MAIL_USER') ?: 'no-reply@uptag.edu.ve';
-        $mail->setFrom($fromAddr, $fromName);
-        $mail->addAddress($destino);
-
-        $mail->Subject = 'Recuperación de contraseña — IPP - UPTAG';
-        $mail->Body    = "Hola $nombre,\n\n"
-                       . "Recibimos una solicitud para restablecer la contraseña de tu cuenta ($usuario).\n\n"
-                       . "Haz clic en el siguiente enlace para establecer una nueva contraseña:\n"
-                       . "$enlace\n\n"
-                       . "Este enlace expirará en 1 hora.\n\n"
-                       . "Si no solicitaste este cambio, ignora este mensaje.\n\n"
-                       . "— Sistema IPP-UPTAG";
-
-        $mail->send();
-    } catch (\Exception $e) {
-        error_log('[UPTAG Mail] No se pudo enviar correo de recuperación a ' . $destino . ': ' . $e->getMessage());
-    }
+    enviarCorreo($destino, 'Recuperación de contraseña — IPP-UPTAG', $cuerpo);
 }
 ?>
 <!DOCTYPE html>
