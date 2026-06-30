@@ -74,6 +74,11 @@ class SaludController
 
     private function crearAval(): void
     {
+        if (!$this->afilId) {
+            $this->flash(false, 'Tu cuenta no está vinculada a un afiliado. Contacta a administración.');
+            $this->redirect('salud.php?tab=aval');
+        }
+
         $medico   = trim($_POST['medico_tratante'] ?? '');
         $especial = trim($_POST['especialidad']    ?? '');
         $centro   = trim($_POST['centro_medico']   ?? '');
@@ -83,6 +88,12 @@ class SaludController
 
         if (!$medico || !$centro || !$proc) {
             $this->flash(false, 'Completa los campos obligatorios.');
+            $this->redirect('salud.php?tab=aval');
+        }
+
+        // El beneficiario, si se indica, debe pertenecer al afiliado en sesión (evita IDOR)
+        if ($benId !== null && !$this->model->beneficiarioPerteneceA($benId, $this->afilId)) {
+            $this->flash(false, 'El beneficiario seleccionado no es válido para tu cuenta.');
             $this->redirect('salud.php?tab=aval');
         }
 

@@ -19,6 +19,8 @@
 }
 .sidebar-brand .nav-name { color: #fff; }
 .sidebar-brand .nav-sub  { color: rgba(255,255,255,.6); }
+/* El logo institucional en la barra lateral, a escala compacta */
+.sidebar-brand .brand-logo--nav { width: 40px; height: 40px; }
 
 .sidebar-nav     { flex: 1; padding: 1rem 0.75rem; display: flex; flex-direction: column; gap: 2px; }
 .sidebar-section { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,.45); padding: 1rem 0.5rem 0.4rem; }
@@ -105,3 +107,53 @@
 .bar-track { flex:1; background:var(--bg); border-radius:10px; height:10px; overflow:hidden; }
 .bar-fill  { height:100%; border-radius:10px; background:var(--primary); transition:width .6s ease; }
 .bar-val   { width:50px; color:var(--text-3); }
+
+/* ── RESPONSIVE (móvil/tablet) ── */
+/* Botón hamburguesa del admin: oculto en escritorio, visible en móvil */
+.admin-menu-toggle {
+  display:none; background:none; border:none; cursor:pointer;
+  color:var(--text-2); font-size:22px; line-height:1;
+  padding:4px 8px; border-radius:var(--radius-xs);
+}
+.admin-menu-toggle:hover { background:var(--surface-2); }
+
+/* Capa oscura tras el sidebar abierto (oculta por defecto) */
+.admin-overlay { display:none; }
+
+@media (max-width: 768px) {
+  /* Liberar el shell de 100vh → scroll natural del documento */
+  .admin-body    { overflow:auto; height:auto; }
+  .admin-layout  { grid-template-columns:1fr; height:auto; min-height:100vh; }
+  .admin-content { overflow:visible; }
+  .admin-main    { overflow-y:visible; padding:1.25rem 1rem 2.5rem; }
+
+  /* Sidebar como cajón deslizante fuera de pantalla */
+  .sidebar {
+    position:fixed; top:0; left:0; bottom:0;
+    width:260px; z-index:320;
+    transform:translateX(-100%);
+    transition:transform .25s ease;
+    box-shadow:4px 0 24px rgba(0,0,0,.25);
+  }
+  .admin-layout.sidebar-open .sidebar { transform:translateX(0); }
+
+  /* Overlay clicable para cerrar */
+  .admin-overlay {
+    position:fixed; inset:0; z-index:310; background:rgba(0,0,0,.45);
+  }
+  .admin-layout.sidebar-open .admin-overlay { display:block; }
+
+  /* Mostrar botón y compactar la barra superior */
+  .admin-menu-toggle { display:inline-flex; align-items:center; }
+  .admin-topbar { padding:.85rem 1rem; }
+  .topbar-title h1 { font-size:16px; }
+
+  /* Apilar rejillas */
+  .admin-metrics { grid-template-columns:repeat(2, 1fr); }
+  .admin-grid    { grid-template-columns:1fr; }
+}
+
+@media (max-width: 420px) {
+  .admin-metrics { grid-template-columns:1fr; }
+  .topbar-user span { display:none; } /* dejar solo avatar + badge */
+}

@@ -70,6 +70,26 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // ── Sidebar del panel admin (mobile) ──
+  const adminMenuToggle = document.getElementById('adminMenuToggle');
+  const adminLayout     = document.querySelector('.admin-layout');
+  if (adminMenuToggle && adminLayout) {
+    const closeSidebar = function () {
+      adminLayout.classList.remove('sidebar-open');
+      adminMenuToggle.setAttribute('aria-expanded', 'false');
+    };
+    adminMenuToggle.addEventListener('click', function () {
+      const open = adminLayout.classList.toggle('sidebar-open');
+      adminMenuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    const overlay = document.getElementById('adminOverlay');
+    if (overlay) overlay.addEventListener('click', closeSidebar);
+    // Al navegar a una sección, cerrar el cajón
+    document.querySelectorAll('.sidebar-nav a, .sidebar-footer a').forEach(function (a) {
+      a.addEventListener('click', closeSidebar);
+    });
+  }
+
   // ── Confirmar acciones destructivas ──
   document.querySelectorAll('[data-confirm]').forEach(function (el) {
     el.addEventListener('click', function (e) {

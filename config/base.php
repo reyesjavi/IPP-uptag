@@ -49,6 +49,30 @@ function url(string $path = ''): string {
     return getRootUrl() . '/' . ltrim($path, '/');
 }
 
+// URL de un recurso estático con versión (?v=mtime) para invalidar la caché
+// del navegador automáticamente cada vez que el archivo cambia.
+function assetUrl(string $path): string {
+    $abs = BASE_PATH . '/' . ltrim($path, '/');
+    $ver = is_file($abs) ? '?v=' . filemtime($abs) : '';
+    return url($path) . $ver;
+}
+
+// URL ABSOLUTA para enlaces que viajan fuera del navegador (correos de
+// verificación / recuperación). Usa APP_URL del entorno si está definida
+// —recomendado: evita el envenenamiento del header Host (Host header
+// injection)—; si no, cae al esquema + host de la petición.
+// APP_URL debe incluir la raíz del proyecto, p. ej.:
+//   XAMPP local → http://localhost/uptag_v9
+//   producción  → https://portal.uptag.edu.ve
+function absoluteUrl(string $path = ''): string {
+    $base = rtrim(getenv('APP_URL') ?: '', '/');
+    if ($base !== '') {
+        return $base . '/' . ltrim($path, '/');
+    }
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    return $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '') . url($path);
+}
+
 // ── Headers de seguridad HTTP (no aplicar a respuestas API/JSON) ──
 if (!defined('API_REQUEST') && !headers_sent()) {
     header('X-Frame-Options: DENY');

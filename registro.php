@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.14.0/tabler-icons.min.css"/>
-  <link rel="stylesheet" href="<?= url('assets/css/style.css') ?>"/>
+  <link rel="stylesheet" href="<?= assetUrl('assets/css/style.css') ?>"/>
   <style>
     .reg-wrap  { min-height:100vh; display:grid; grid-template-columns:1fr 460px; }
     .reg-left  { background:var(--primary); padding:4rem 3.5rem; display:flex; flex-direction:column; justify-content:center; position:relative; overflow:hidden; }
@@ -147,14 +147,27 @@ document.getElementById('formRegistro').addEventListener('submit', async functio
     const json = await resp.json();
 
     if (json.ok) {
+      // Sólo se vuelve al login cuando ya se puede iniciar sesión.
+      const redirigeAlLogin = (json.codigo === 'VIGENCIA_RENOVADA');
+      const titulos = {
+        VIGENCIA_RENOVADA:      '¡Vigencia renovada!',
+        VERIFICACION_ENVIADA:   'Revisa tu correo',
+        VERIFICACION_REENVIADA: 'Te reenviamos el enlace',
+        PENDIENTE_APROBACION:   'Solicitud pendiente',
+      };
+      const tipos = {
+        VIGENCIA_RENOVADA:    'warn',
+        PENDIENTE_APROBACION: 'warn',
+      };
       mostrarResultado(
-        json.codigo === 'VIGENCIA_RENOVADA' ? 'warn' : 'ok',
-        json.codigo === 'VIGENCIA_RENOVADA' ? '¡Vigencia renovada!' : '¡Cuenta creada exitosamente!',
+        tipos[json.codigo] || 'ok',
+        titulos[json.codigo] || 'Listo',
         json.msg
       );
       document.getElementById('formRegistro').style.display = 'none';
-      // Redirigir al login después de 3 segundos
-      setTimeout(() => { window.location.href = '<?= url("login.php") ?>'; }, 3000);
+      if (redirigeAlLogin) {
+        setTimeout(() => { window.location.href = '<?= url("login.php") ?>'; }, 3000);
+      }
     } else {
       mostrarResultado('error',
         json.codigo === 'NO_AGREMIADO'        ? 'No encontrado en el padrón' :

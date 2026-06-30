@@ -2,11 +2,9 @@
 // recuperar_password.php — Solicitar recuperación de contraseña
 require_once __DIR__ . '/config/base.php';
 require_once __DIR__ . '/config/database.php';
-require_once __DIR__ . '/lib/phpmailer/Exception.php';
-require_once __DIR__ . '/lib/phpmailer/PHPMailer.php';
-require_once __DIR__ . '/lib/phpmailer/SMTP.php';
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\SMTP;
+require_once __DIR__ . '/includes/auth.php';   // verificarRateLimitIP()
+require_once __DIR__ . '/includes/branding.php';
+require_once __DIR__ . '/includes/mailer.php'; // enviarCorreo()
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 
@@ -22,8 +20,15 @@ if ($paso === 'solicitar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($ci)) {
         $error = 'Ingresa tu cédula de identidad.';
+    } elseif (!verificarRateLimitIP('recuperacion_intento', 5, 60)) {
+        // Limitar el abuso del endpoint (spam de correos / sondeo)
+        $error = 'Demasiadas solicitudes desde esta red. Espera un momento e inténtalo de nuevo.';
     } else {
         $pdo  = getDB();
+        $ip   = $_SERVER['REMOTE_ADDR'] ?? '';
+        // Registrar el intento para que el rate-limit por IP lo contabilice
+        registrarLog_simple($pdo, 'recuperacion_intento', "CI: $ci", null, $ip);
+
         $stmt = $pdo->prepare("
             SELECT u.id_usuario, u.username, a.correo, a.nombre
             FROM usuarios_registrados u
@@ -42,22 +47,21 @@ if ($paso === 'solicitar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("UPDATE recuperacion_password SET usado=1 WHERE id_usuario=:id AND usado=0")
                 ->execute([':id' => $usuario['id_usuario']]);
 
-            // Generar token seguro
-            $token    = bin2hex(random_bytes(32));
-            $expira   = date('Y-m-d H:i:s', strtotime('+1 hour'));
-            $ip       = $_SERVER['REMOTE_ADDR'] ?? '';
+            // Generar token seguro. En BD se guarda su hash sha256; el enlace
+            // del correo lleva el token en claro.
+            $token     = bin2hex(random_bytes(32));
+            $tokenHash = hash('sha256', $token);
+            $expira    = date('Y-m-d H:i:s', strtotime('+1 hour'));
 
             $pdo->prepare("
                 INSERT INTO recuperacion_password (id_usuario, token, expira_en, ip_solicitud)
                 VALUES (:id, :token, :expira, :ip)
-            ")->execute([':id'=>$usuario['id_usuario'], ':token'=>$token, ':expira'=>$expira, ':ip'=>$ip]);
+            ")->execute([':id'=>$usuario['id_usuario'], ':token'=>$tokenHash, ':expira'=>$expira, ':ip'=>$ip]);
 
-            // Construir enlace
-            $enlace = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://'
-                    . $_SERVER['HTTP_HOST']
-                    . url('recuperar_password.php') . '?paso=restablecer&token=' . $token;
+            // Construir enlace (URL canónica para evitar Host header injection)
+            $enlace = absoluteUrl('recuperar_password.php') . '?paso=restablecer&token=' . $token;
 
-            // Enviar email con PHPMailer
+            // Enviar email con el enlace de recuperación
             enviarRecuperacion($usuario['correo'], $usuario['nombre'], $usuario['username'], $enlace);
 
             registrarLog_simple($pdo, 'recuperacion_solicitada', "CI: $ci", $usuario['id_usuario'], $ip);
@@ -77,7 +81,7 @@ if ($paso === 'restablecer' && $token) {
         WHERE r.token = :token AND r.usado = 0 AND r.expira_en > NOW()
         LIMIT 1
     ");
-    $stmt->execute([':token' => $token]);
+    $stmt->execute([':token' => hash('sha256', $token)]);
     $usuarioToken = $stmt->fetch();
     $tokenValido  = (bool)$usuarioToken;
     if (!$tokenValido) $error = 'El enlace es inválido o ya expiró. Solicita uno nuevo.';
@@ -98,7 +102,7 @@ if ($paso === 'restablecer' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         WHERE r.token = :token AND r.usado = 0 AND r.expira_en > NOW()
         LIMIT 1
     ");
-    $stmt->execute([':token' => $tokenPost]);
+    $stmt->execute([':token' => hash('sha256', $tokenPost)]);
     $reg = $stmt->fetch();
 
     if (!$reg) {
@@ -111,17 +115,17 @@ if ($paso === 'restablecer' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $tokenValido = true; $usuarioToken = $reg;
     } else {
         $hash = password_hash($nueva, PASSWORD_BCRYPT, ['cost'=>12]);
-        $pdo->prepare("UPDATE usuarios_registrados SET password_hash=:h, intentos_fallidos=0, bloqueado=0 WHERE id_usuario=:id")
+        $pdo->prepare("UPDATE usuarios_registrados SET password_hash=:h, intentos_fallidos=0, bloqueado=0, bloqueado_hasta=NULL WHERE id_usuario=:id")
             ->execute([':h'=>$hash, ':id'=>$reg['id_usuario']]);
-        $pdo->prepare("UPDATE recuperacion_password SET usado=1 WHERE token=:t")
-            ->execute([':t'=>$tokenPost]);
+        $pdo->prepare("UPDATE recuperacion_password SET usado=1 WHERE id_recuperacion=:id")
+            ->execute([':id'=>$reg['id_recuperacion']]);
         registrarLog_simple($pdo, 'password_restablecida', "Usuario: {$reg['username']}", $reg['id_usuario'], $_SERVER['REMOTE_ADDR']??'');
         $mensaje = '¡Contraseña actualizada correctamente! Ya puedes iniciar sesión.';
         $paso    = 'listo';
     }
 }
 
-function registrarLog_simple(PDO $pdo, string $accion, string $detalle, int $uid, string $ip): void {
+function registrarLog_simple(PDO $pdo, string $accion, string $detalle, ?int $uid, string $ip): void {
     try {
         $pdo->prepare("INSERT INTO log_actividad (id_usuario,accion,detalle,ip) VALUES (:u,:a,:d,:i)")
             ->execute([':u'=>$uid,':a'=>$accion,':d'=>$detalle,':i'=>$ip]);
@@ -129,35 +133,15 @@ function registrarLog_simple(PDO $pdo, string $accion, string $detalle, int $uid
 }
 
 function enviarRecuperacion(string $destino, string $nombre, string $usuario, string $enlace): void {
-    $mail = new PHPMailer(true);
-    try {
-        $mail->isSMTP();
-        $mail->Host       = getenv('MAIL_HOST') ?: 'smtp.gmail.com';
-        $mail->SMTPAuth   = true;
-        $mail->Username   = getenv('MAIL_USER') ?: '';
-        $mail->Password   = getenv('MAIL_PASS') ?: '';
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = (int)(getenv('MAIL_PORT') ?: 587);
-        $mail->CharSet    = 'UTF-8';
+    $cuerpo = "Hola $nombre,\n\n"
+            . "Recibimos una solicitud para restablecer la contraseña de tu cuenta ($usuario).\n\n"
+            . "Haz clic en el siguiente enlace para establecer una nueva contraseña:\n"
+            . "$enlace\n\n"
+            . "Este enlace expirará en 1 hora.\n\n"
+            . "Si no solicitaste este cambio, ignora este mensaje.\n\n"
+            . "— Sistema IPP-UPTAG";
 
-        $fromName = getenv('MAIL_FROM_NAME') ?: 'IPP UPTAG';
-        $fromAddr = getenv('MAIL_USER') ?: 'no-reply@uptag.edu.ve';
-        $mail->setFrom($fromAddr, $fromName);
-        $mail->addAddress($destino);
-
-        $mail->Subject = 'Recuperación de contraseña — IPP - UPTAG';
-        $mail->Body    = "Hola $nombre,\n\n"
-                       . "Recibimos una solicitud para restablecer la contraseña de tu cuenta ($usuario).\n\n"
-                       . "Haz clic en el siguiente enlace para establecer una nueva contraseña:\n"
-                       . "$enlace\n\n"
-                       . "Este enlace expirará en 1 hora.\n\n"
-                       . "Si no solicitaste este cambio, ignora este mensaje.\n\n"
-                       . "— Sistema IPP-UPTAG";
-
-        $mail->send();
-    } catch (\Exception $e) {
-        error_log('[UPTAG Mail] No se pudo enviar correo de recuperación a ' . $destino . ': ' . $e->getMessage());
-    }
+    enviarCorreo($destino, 'Recuperación de contraseña — IPP-UPTAG', $cuerpo);
 }
 ?>
 <!DOCTYPE html>
@@ -168,7 +152,7 @@ function enviarRecuperacion(string $destino, string $nombre, string $usuario, st
   <title>Recuperar Contraseña — UPTAG</title>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.14.0/tabler-icons.min.css"/>
-  <link rel="stylesheet" href="<?= url('assets/css/style.css') ?>"/>
+  <link rel="stylesheet" href="<?= assetUrl('assets/css/style.css') ?>"/>
   <style>
     body { background:var(--bg); display:flex; align-items:center; justify-content:center; min-height:100vh; }
     .rec-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:2.5rem 2rem; width:420px; max-width:95vw; box-shadow:var(--shadow-md); }
@@ -179,7 +163,7 @@ function enviarRecuperacion(string $destino, string $nombre, string $usuario, st
 <body>
 <div class="rec-card">
   <div style="text-align:center;margin-bottom:1.5rem">
-    <div class="nav-logo" style="margin:0 auto 1rem;width:46px;height:46px">UP</div>
+    <div style="margin:0 auto 1rem;display:flex;justify-content:center"><?= logoIPP('nav') ?></div>
     <h2>Recuperar contraseña</h2>
   </div>
 
@@ -201,7 +185,7 @@ function enviarRecuperacion(string $destino, string $nombre, string $usuario, st
     <p>Ingresa tu nueva contraseña para <strong><?= htmlspecialchars($usuarioToken['username']) ?></strong>.</p>
     <form method="POST">
       <?= campoCsrf() ?>
-      <input type="hidden" name="token" value="<?= htmlspecialchars($token ?: $_POST['token'] ?? '') ?>">
+      <input type="hidden" name="token" value="<?= htmlspecialchars($token ?: ($_POST['token'] ?? '')) ?>">
       <div class="form-group">
         <label>Nueva contraseña <small style="color:var(--text-3)">(mín. 16 caracteres)</small></label>
         <input type="password" name="nueva_password" minlength="16" required placeholder="Mínimo 16 caracteres"/>

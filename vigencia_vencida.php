@@ -25,7 +25,7 @@ $ci = $_SESSION['usuario_ci'] ?? '';
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.14.0/tabler-icons.min.css"/>
-  <link rel="stylesheet" href="<?= url('assets/css/style.css') ?>"/>
+  <link rel="stylesheet" href="<?= assetUrl('assets/css/style.css') ?>"/>
   <style>
     body { background:var(--bg); display:flex; align-items:center; justify-content:center; min-height:100vh; }
     .vig-card {
