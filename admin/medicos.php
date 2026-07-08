@@ -28,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'direccion'      => trim($_POST['direccion']       ?? '') ?: null,
         'horario'        => trim($_POST['horario']         ?? '') ?: null,
         'convenio'       => trim($_POST['convenio']        ?? '') ?: null,
+        'servicios'      => trim($_POST['servicios']       ?? '') ?: null,
         'id_servicio'    => !empty($_POST['id_servicio']) ? intval($_POST['id_servicio']) : null,
     ];
 
@@ -166,6 +167,10 @@ require_once __DIR__ . '/header.php';
       <div class="form-group">
         <label>Convenio</label>
         <input type="text" name="convenio" value="<?= htmlspecialchars($editando['convenio'] ?? '') ?>" placeholder="Convenio Full / Descuento 30%" />
+      </div>
+      <div class="form-group">
+        <label>Servicios que ofrece</label>
+        <textarea name="servicios" rows="3" placeholder="Ej: Valoración cardiovascular, electrocardiograma, Holter..."><?= htmlspecialchars($editando['servicios'] ?? '') ?></textarea>
       </div>
       <div class="form-group">
         <label>Servicio del plan</label>

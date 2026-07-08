@@ -132,8 +132,8 @@ CREATE INDEX IF NOT EXISTS idx_vigencia_anio         ON vigencia_anual(anio);
 CREATE INDEX IF NOT EXISTS idx_agremiado_ci          ON agremiado(ci);
 
 -- ── 8. Usuarios de prueba (admin y administrativo) ──────────
--- IMPORTANTE: Estos hashes son para la contraseña "admin2026"
--- Si no funciona el login, ejecuta crear_admins.php para regenerarlos
+-- IMPORTANTE: Placeholders. Regenera cada hash con tu propia contraseña:
+--   php -r "echo password_hash('TU_CLAVE', PASSWORD_BCRYPT);"
 INSERT IGNORE INTO usuarios_registrados (username, password_hash, rol, activo)
 VALUES ('admin', '$2y$12$placeholder', 'admin', 1);
 

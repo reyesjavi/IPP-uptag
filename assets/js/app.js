@@ -30,19 +30,21 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // ── Tabs: cambiar pestaña activa ──
-  window.switchTab = function (btn, targetId, groupClass) {
-    // Desactivar todos los tabs del grupo
-    if (groupClass) {
-      document.querySelectorAll('.' + groupClass).forEach(function (p) {
-        p.style.display = 'none';
-      });
-      btn.closest('.tab-bar').querySelectorAll('.tab').forEach(function (t) {
-        t.classList.remove('active');
+  window.switchTab = function (btn, targetId, groupId) {
+    // Ocultar todos los paneles del grupo (por su id contenedor) y desactivar sus tabs
+    const group = document.getElementById(groupId);
+    if (group) {
+      group.querySelectorAll('.tab-panel').forEach(function (p) {
+        p.classList.remove('active');
+        p.style.display = ''; // limpiar cualquier estilo en línea previo
       });
     }
-    // Activar el seleccionado
+    btn.closest('.tab-bar').querySelectorAll('.tab').forEach(function (t) {
+      t.classList.remove('active');
+    });
+    // Activar el panel y el tab seleccionados (la clase .active controla el display vía CSS)
     const target = document.getElementById(targetId);
-    if (target) target.style.display = 'block';
+    if (target) target.classList.add('active');
     btn.classList.add('active');
   };
 

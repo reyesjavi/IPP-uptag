@@ -45,8 +45,8 @@ class MedicoModel extends Model
     public function crear(array $campos): int
     {
         $this->execute("
-            INSERT INTO medico (tipo, nombre, apellido, especialidad, cedula, numero_contacto, direccion, horario, convenio, id_servicio, activo)
-            VALUES (:tipo, :nom, :ape, :esp, :ced, :tel, :dir, :horario, :conv, :srv, 1)
+            INSERT INTO medico (tipo, nombre, apellido, especialidad, cedula, numero_contacto, direccion, horario, convenio, servicios, id_servicio, activo)
+            VALUES (:tipo, :nom, :ape, :esp, :ced, :tel, :dir, :horario, :conv, :servicios, :srv, 1)
         ", [
             ':tipo'   => $campos['tipo']             ?? 'medico',
             ':nom'    => $campos['nombre'],
@@ -57,6 +57,7 @@ class MedicoModel extends Model
             ':dir'    => $campos['direccion']        ?? null,
             ':horario'=> $campos['horario']          ?? null,
             ':conv'   => $campos['convenio']         ?? null,
+            ':servicios'=> $campos['servicios']      ?? null,
             ':srv'    => $campos['id_servicio']      ?? null,
         ]);
         return $this->lastId();
@@ -69,7 +70,7 @@ class MedicoModel extends Model
                SET tipo = :tipo, nombre = :nom, apellido = :ape,
                    especialidad = :esp, cedula = :ced, numero_contacto = :tel,
                    direccion = :dir, horario = :horario, convenio = :conv,
-                   id_servicio = :srv, activo = :activo
+                   servicios = :servicios, id_servicio = :srv, activo = :activo
              WHERE id_medico = :id
         ", [
             ':tipo'   => $campos['tipo']             ?? 'medico',
@@ -81,6 +82,7 @@ class MedicoModel extends Model
             ':dir'    => $campos['direccion']        ?? null,
             ':horario'=> $campos['horario']          ?? null,
             ':conv'   => $campos['convenio']         ?? null,
+            ':servicios'=> $campos['servicios']      ?? null,
             ':srv'    => $campos['id_servicio']      ?? null,
             ':activo' => isset($campos['activo']) ? (int)$campos['activo'] : 1,
             ':id'     => $id,

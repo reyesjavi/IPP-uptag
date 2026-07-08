@@ -1,10 +1,30 @@
 # Credenciales — nunca versionar
 config/database.php
 .env
+config.php
+config.local.php
+.env.local
+.env.*.local
 
 # Uploads generados por usuarios
 uploads/reembolsos/*
 !uploads/reembolsos/.gitkeep
+
+# Datos personales / documentos de ejemplo (contienen datos reales de afiliados)
+_constancia_ejemplo.pdf
+*_ejemplo.pdf
+
+# Dependencias y temporales
+/vendor/
+/tmp/
+/uploads/**
+!/uploads/.htaccess
+!/uploads/reembolsos/
+!/uploads/reembolsos/.gitkeep
+
+# Config local de Claude Code
+.claude/
+skills/
 
 # Archivos de sistema
 .DS_Store

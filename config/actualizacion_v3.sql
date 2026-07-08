@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS log_actividad (
 -- (En MySQL el campo ya es VARCHAR, no ENUM, así que no requiere ALTER)
 
 -- 3. Usuario Administrador (tú)
---    Contraseña: admin2026
+--    Contraseña: definida de forma privada (no se documenta en el repositorio).
+--    Regenera el hash con: php -r "echo password_hash('TU_CLAVE', PASSWORD_BCRYPT);"
 INSERT INTO usuarios_registrados (username, password_hash, rol, activo, id_afiliado, cod_a)
 VALUES (
   'admin',
@@ -32,7 +33,7 @@ VALUES (
 ON DUPLICATE KEY UPDATE rol='admin';
 
 -- 4. Usuario Personal Administrativo de prueba
---    Contraseña: admin2026
+--    Contraseña: definida de forma privada (no se documenta en el repositorio).
 INSERT INTO usuarios_registrados (username, password_hash, rol, activo, id_afiliado, cod_a)
 VALUES (
   'administrativo',
@@ -44,6 +45,6 @@ VALUES (
 )
 ON DUPLICATE KEY UPDATE rol='administrativo';
 
--- NOTA: Si el hash no funciona, ejecuta este script PHP para regenerarlo:
--- <?php echo password_hash('admin2026', PASSWORD_BCRYPT); ?>
+-- NOTA: Si el hash no funciona, regenéralo con tu propia contraseña:
+-- php -r "echo password_hash('TU_CLAVE', PASSWORD_BCRYPT);"
 -- Y reemplaza el valor en los INSERT anteriores.

@@ -1,5 +1,5 @@
 <?php
-// api/registro.php — Registro de agremiados con verificación de identidad por correo
+// api/registro.php — Registro de agremiados (validación por padrón; cuenta activa al instante)
 define('API_REQUEST', true);
 require_once __DIR__ . '/../config/base.php';
 require_once __DIR__ . '/../config/database.php';
@@ -81,9 +81,6 @@ try {
     $idAgremiado = $agremiado['id_agremiado'];
     $anioActual  = (int) date('Y');
     $hash        = password_hash($password, PASSWORD_BCRYPT, ['cost'=>12]);
-    // El correo de verificación SIEMPRE va al correo de ficha del agremiado,
-    // no al que teclea quien rellena el formulario (así se prueba la identidad).
-    $correoFicha = trim($agremiado['correo'] ?? '');
 
     // ══════════════════════════════════════════════════════
     // VALIDACIÓN 3: ¿Ya tiene cuenta en el portal?
@@ -93,23 +90,16 @@ try {
     $cuentaExistente = $stmtCuenta->fetch();
 
     if ($cuentaExistente) {
-        // Cuenta creada pero sin verificar el correo: reenviar el enlace.
+        // La verificación por correo fue eliminada: una cuenta que quedó sin
+        // verificar (legado) se activa directamente para permitir el acceso.
         if (empty($cuentaExistente['correo_verificado'])) {
-            if ($correoFicha !== '') {
-                $tokenPlano = crearTokenVerificacion($pdo, (int)$cuentaExistente['id_usuario']);
-                enviarCorreoVerificacion($correoFicha, $agremiado['nombre'], $ci, $tokenPlano);
-                echo json_encode([
-                    'ok'     => true,
-                    'codigo' => 'VERIFICACION_REENVIADA',
-                    'msg'    => 'Tu cuenta aún no está verificada. Te reenviamos el enlace de activación al correo registrado en tu ficha de agremiado.'
-                ]);
-            } else {
-                echo json_encode([
-                    'ok'     => true,
-                    'codigo' => 'PENDIENTE_APROBACION',
-                    'msg'    => 'Tu solicitud está pendiente de aprobación por la administración del IPP.'
-                ]);
-            }
+            $pdo->prepare("UPDATE usuarios_registrados SET activo=1, correo_verificado=1 WHERE id_usuario=:id")
+                ->execute([':id'=>(int)$cuentaExistente['id_usuario']]);
+            echo json_encode([
+                'ok'     => true,
+                'codigo' => 'CUENTA_ACTIVADA',
+                'msg'    => 'Tu cuenta ya está activa. Puedes iniciar sesión.'
+            ]);
             exit;
         }
 
@@ -151,11 +141,8 @@ try {
     $datosAgr->execute([':id' => $idAgremiado]);
     $ag = $datosAgr->fetch();
 
-    // El afiliado se materializa AHORA aunque la cuenta acabe pendiente de
-    // aprobación (ruta "sin correo en ficha"): la aprobación del admin en
-    // admin/solicitudes.php vincula la cuenta con `(SELECT id_afiliado ... WHERE ci)`,
-    // por lo que el afiliado ya debe existir. Lo único que queda en cola es el
-    // acceso al portal (usuarios_registrados), no el registro de afiliado.
+    // El afiliado se materializa junto con la cuenta: todo agremiado presente
+    // en el padrón obtiene acceso activo de inmediato, sin aprobación previa.
 
     // 1) Buscar si ya existe un afiliado con esa CI
     $stmtAfil = $pdo->prepare("SELECT id_afiliado FROM afiliado WHERE ci = :ci LIMIT 1");
@@ -214,34 +201,12 @@ try {
         ]);
     }
 
-    // ── SIN correo en ficha: no podemos probar identidad por correo ──
-    //    → encolar como solicitud para aprobación administrativa.
-    if ($correoFicha === '') {
-        $pdo->prepare("
-            INSERT INTO solicitud_registro (ci, correo_contacto, telefono, password_hash, estado)
-            VALUES (:ci, :correo, :tel, :hash, 'pendiente')
-        ")->execute([
-            ':ci'     => $ci,
-            ':correo' => $correo ?: null,
-            ':tel'    => $telefono ?: ($ag['telefono'] ?? null),
-            ':hash'   => $hash,
-        ]);
-        $pdo->commit();
-
-        registrarLog('registro_pendiente', "Solicitud sin correo de ficha, CI: $ci");
-        echo json_encode([
-            'ok'     => true,
-            'codigo' => 'PENDIENTE_APROBACION',
-            'msg'    => 'No hay un correo registrado en tu ficha de agremiado, por lo que tu solicitud quedó pendiente de aprobación por la administración del IPP. Te contactaremos en breve.'
-        ]);
-        exit;
-    }
-
-    // ── CON correo en ficha: crear cuenta PENDIENTE de verificación ──
-    //    activo=0 y correo_verificado=0 → login bloqueado hasta confirmar.
+    // ── Crear cuenta ACTIVA para todo agremiado del padrón ──
+    //    La pertenencia al padrón de agremiados es la única validación previa;
+    //    no se requiere aprobación administrativa ni verificación por correo.
     $stmtIns = $pdo->prepare("
         INSERT IGNORE INTO usuarios_registrados (username, password_hash, rol, activo, correo_verificado, id_afiliado)
-        VALUES (:user, :hash, 'afiliado', 0, 0, :afil)
+        VALUES (:user, :hash, 'afiliado', 1, 1, :afil)
     ");
     $stmtIns->execute([':user'=>$ci, ':hash'=>$hash, ':afil'=>$afiliadoVinc]);
 
@@ -254,27 +219,22 @@ try {
     }
     $idUsuario = (int) $pdo->lastInsertId();
 
-    // Registrar vigencia anual (el acceso se habilita al verificar el correo)
+    // Registrar vigencia anual (acceso inmediato).
     registrarVigencia($pdo, $idAgremiado, $anioActual);
-
-    // Generar token de verificación (hasheado en BD)
-    $tokenPlano = crearTokenVerificacion($pdo, $idUsuario);
 
     $pdo->commit();
 
-    // Enviar el correo DESPUÉS del commit, para que el enlace ya sea válido.
-    enviarCorreoVerificacion($correoFicha, $agremiado['nombre'], $ci, $tokenPlano);
-
     try {
         $pdo->prepare("INSERT INTO log_actividad (id_usuario, accion, detalle, ip) VALUES (NULL,'registro_nuevo',:d,:ip)")
-            ->execute([':d'=>"Registro pendiente de verificación CI: $ci", ':ip'=>$_SERVER['REMOTE_ADDR']??'']);
+            ->execute([':d'=>"Registro nuevo (cuenta activa) CI: $ci", ':ip'=>$_SERVER['REMOTE_ADDR']??'']);
     } catch (Exception $e) {}
 
     echo json_encode([
         'ok'        => true,
-        'codigo'    => 'VERIFICACION_ENVIADA',
-        'msg'       => "¡Casi listo, {$agremiado['nombre']}! Te enviamos un enlace de activación al correo registrado en tu ficha de agremiado. Revísalo para activar tu cuenta.",
+        'codigo'    => 'REGISTRO_OK',
+        'msg'       => "¡Listo, {$agremiado['nombre']}! Tu cuenta ya está activa. Ya puedes iniciar sesión.",
         'nombre'    => $agremiado['nombre'].' '.$agremiado['apellido'],
+        'redirigir' => true,
     ]);
 
 } catch (PDOException $e) {
@@ -293,36 +253,4 @@ function registrarVigencia(PDO $pdo, int $idAgremiado, int $anio): void {
         VALUES (:id, :anio, :venc, 'activa')
         ON DUPLICATE KEY UPDATE estado='activa', fecha_vencimiento=VALUES(fecha_vencimiento), fecha_registro=CURRENT_DATE
     ")->execute([':id'=>$idAgremiado, ':anio'=>$anio, ':venc'=>$venc]);
-}
-
-// Invalida tokens previos y crea uno nuevo. Devuelve el token EN CLARO
-// (en BD se guarda su hash sha256). El enlace del correo lleva el token en claro.
-function crearTokenVerificacion(PDO $pdo, int $idUsuario): string {
-    $pdo->prepare("UPDATE verificacion_correo SET usado=1 WHERE id_usuario=:id AND usado=0")
-        ->execute([':id'=>$idUsuario]);
-    $tokenPlano = bin2hex(random_bytes(32));
-    $pdo->prepare("
-        INSERT INTO verificacion_correo (id_usuario, token, expira_en, ip_solicitud)
-        VALUES (:id, :tok, :exp, :ip)
-    ")->execute([
-        ':id'  => $idUsuario,
-        ':tok' => hash('sha256', $tokenPlano),
-        ':exp' => date('Y-m-d H:i:s', strtotime('+24 hours')),
-        ':ip'  => $_SERVER['REMOTE_ADDR'] ?? '',
-    ]);
-    return $tokenPlano;
-}
-
-function enviarCorreoVerificacion(string $destino, string $nombre, string $usuario, string $tokenPlano): void {
-    $enlace = absoluteUrl('verificar_correo.php') . '?token=' . $tokenPlano;
-
-    $cuerpo = "Hola $nombre,\n\n"
-            . "Recibimos una solicitud para crear tu cuenta en el portal IPP-UPTAG ($usuario).\n\n"
-            . "Haz clic en el siguiente enlace para activar tu cuenta:\n"
-            . "$enlace\n\n"
-            . "Este enlace expirará en 24 horas.\n\n"
-            . "Si no solicitaste esta cuenta, ignora este mensaje.\n\n"
-            . "— Sistema IPP-UPTAG";
-
-    enviarCorreo($destino, 'Activa tu cuenta — IPP-UPTAG', $cuerpo);
 }

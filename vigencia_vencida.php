@@ -90,7 +90,7 @@ async function renovar() {
   try {
     const resp = await fetch('<?= url("api/registro.php") ?>', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
       body: JSON.stringify({ ci: '<?= htmlspecialchars($ci, ENT_QUOTES) ?>', password: pass })
     });
     const json = await resp.json();

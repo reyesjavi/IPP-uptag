@@ -98,6 +98,14 @@ require_once __DIR__ . '/includes/header.php';
     </p>
   </div>
 
+  <?php if ($esAfiliado && $afilId): ?>
+  <div class="btn-row" style="margin-bottom:1.2rem">
+    <a href="<?= url('constancia.php') ?>" class="btn btn-teal" target="_blank" style="display:inline-flex">
+      <i class="ti ti-file-download"></i> Descargar constancia de afiliación (PDF)
+    </a>
+  </div>
+  <?php endif; ?>
+
   <?php if ($esAfiliado): ?>
   <div class="card" style="margin-bottom:1.2rem">
     <div class="card-title">

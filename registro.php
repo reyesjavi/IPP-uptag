@@ -141,23 +141,23 @@ document.getElementById('formRegistro').addEventListener('submit', async functio
   try {
     const resp = await fetch('<?= url("api/registro.php") ?>', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // 'ngrok-skip-browser-warning' evita que ngrok (plan free) intercepte
+      // esta llamada AJAX con su página de advertencia y devuelva el JSON real.
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
       body: JSON.stringify(data)
     });
     const json = await resp.json();
 
     if (json.ok) {
-      // Sólo se vuelve al login cuando ya se puede iniciar sesión.
-      const redirigeAlLogin = (json.codigo === 'VIGENCIA_RENOVADA');
+      // Se vuelve al login cuando ya se puede iniciar sesión.
+      const redirigeAlLogin = ['VIGENCIA_RENOVADA', 'REGISTRO_OK', 'CUENTA_ACTIVADA'].includes(json.codigo);
       const titulos = {
-        VIGENCIA_RENOVADA:      '¡Vigencia renovada!',
-        VERIFICACION_ENVIADA:   'Revisa tu correo',
-        VERIFICACION_REENVIADA: 'Te reenviamos el enlace',
-        PENDIENTE_APROBACION:   'Solicitud pendiente',
+        VIGENCIA_RENOVADA:    '¡Vigencia renovada!',
+        REGISTRO_OK:          '¡Cuenta creada!',
+        CUENTA_ACTIVADA:      'Cuenta activada',
       };
       const tipos = {
         VIGENCIA_RENOVADA:    'warn',
-        PENDIENTE_APROBACION: 'warn',
       };
       mostrarResultado(
         tipos[json.codigo] || 'ok',

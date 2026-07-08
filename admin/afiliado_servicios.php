@@ -28,6 +28,26 @@ unset($_SESSION['flash_admin']);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verificarCsrf();
 
+    // ── Asignar plan médico (cod_pm) al afiliado ──────────────
+    //    Esto actualiza el PLAN del afiliado, no sus servicios individuales.
+    if (($_POST['accion'] ?? '') === 'asignar_plan') {
+        $codPm = trim($_POST['cod_pm'] ?? '');
+        $planesValidos = $pdo->query("SELECT cod_pm FROM plan_medico")->fetchAll(PDO::FETCH_COLUMN);
+        if ($codPm !== '' && !in_array($codPm, $planesValidos, true)) {
+            $_SESSION['flash_admin'] = ['ok' => false, 'msg' => 'El plan médico seleccionado no existe.'];
+            header('Location: ' . url("admin/afiliado_servicios.php?id=$afilId"));
+            exit;
+        }
+        $pdo->prepare("UPDATE afiliado SET cod_pm = :pm WHERE id_afiliado = :id")
+            ->execute([':pm' => $codPm ?: null, ':id' => $afilId]);
+
+        $nombreAfil = trim($afiliado['nombre'] . ' ' . $afiliado['apellido']);
+        registrarLog('plan_afiliado', "Plan de $nombreAfil (AFI-$afilId) → " . ($codPm ?: 'Sin plan'));
+        $_SESSION['flash_admin'] = ['ok' => true, 'msg' => "Plan médico de $nombreAfil actualizado a " . ($codPm ?: 'Sin plan') . '.'];
+        header('Location: ' . url("admin/afiliado_servicios.php?id=$afilId"));
+        exit;
+    }
+
     $adminId = $_SESSION['usuario_id'] ?? null;
 
     // Todos los servicios del sistema
@@ -79,7 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// ── GET: cargar todos los servicios y cuáles están habilitados ─
+// ── GET: cargar planes, servicios y cuáles están habilitados ──
+$planes = $pdo->query("SELECT cod_pm, costo FROM plan_medico ORDER BY cod_pm")->fetchAll();
 $todosServicios = $pdo->query("SELECT id_servicio, tipo_servicio, cod_pm FROM servicio ORDER BY tipo_servicio")->fetchAll();
 
 $stmtHab = $pdo->prepare("SELECT id_servicio FROM afiliado_servicio WHERE id_afiliado = :id AND habilitado = 1");
@@ -111,6 +132,31 @@ require_once __DIR__ . '/header.php';
   <a href="<?= url('admin/afiliados.php') ?>" class="btn btn-outline" style="font-size:13px">
     <i class="ti ti-arrow-left"></i> Volver a Afiliados
   </a>
+</div>
+
+<!-- Asignación de plan médico -->
+<div class="sc" style="margin-bottom:1.2rem">
+  <h3 style="margin-bottom:.5rem">Plan médico</h3>
+  <p style="font-size:13px;color:var(--text-3);margin-bottom:1rem">
+    Asigna el <strong>plan de cobertura</strong> del afiliado. Esto actualiza su plan
+    (campo <code>cod_pm</code>), distinto de los servicios individuales de abajo.
+  </p>
+  <form method="POST" action="<?= url("admin/afiliado_servicios.php?id=$afilId") ?>"
+        style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+    <?= campoCsrf() ?>
+    <input type="hidden" name="accion" value="asignar_plan">
+    <select name="cod_pm" style="font-size:13px;padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text)">
+      <option value="">Sin plan</option>
+      <?php foreach ($planes as $pl): ?>
+        <option value="<?= htmlspecialchars($pl['cod_pm']) ?>" <?= ($afiliado['cod_pm'] ?? '') === $pl['cod_pm'] ? 'selected' : '' ?>>
+          <?= htmlspecialchars($pl['cod_pm']) ?> — Bs. <?= number_format((float)$pl['costo'], 2, ',', '.') ?>
+        </option>
+      <?php endforeach; ?>
+    </select>
+    <button type="submit" class="btn btn-teal" style="font-size:13px">
+      <i class="ti ti-device-floppy"></i> Asignar plan
+    </button>
+  </form>
 </div>
 
 <!-- Formulario de servicios -->

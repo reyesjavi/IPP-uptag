@@ -46,13 +46,7 @@ VALUES
   (1, 'José', 'Ramírez', 'V-12345678', '1985-03-15',
    'j.ramirez@uptag.edu.ve', '0414-555-0000', 'UPTAG-2019', 'PM-0042');
 
--- Médico de prueba
-INSERT IGNORE INTO MEDICO
-  (id_medico, nombre, apellido, especialidad, cedula, numero_contacto, id_servicio)
-VALUES
-  (1, 'Carlos', 'González', 'Cardiología',   'V-9876543',  '0255-621-0001', 1),
-  (2, 'María',  'Ortega',   'Pediatría',     'V-8765432',  '0426-333-0002', 1),
-  (3, 'Luis',   'Páez',     'Traumatología', 'V-7654321',  '0255-621-0003', 2);
+-- Directorio de médicos: se carga en migracion_p3.sql (directorio real del IPP).
 
 -- Beneficiarios del afiliado
 INSERT IGNORE INTO BENEFICIARIO
@@ -62,17 +56,16 @@ VALUES
   (2, 2, NULL,         'Carlos', 'Ramírez', '2012-09-10', 'Hijo',    1),
   (3, 3, NULL,         'Laura',  'Ramírez', '2015-02-28', 'Hija',    1);
 
--- Usuario del portal (contraseña: uptag2026)
--- Para generar el hash en PHP: echo password_hash('uptag2026', PASSWORD_BCRYPT);
+-- Usuario afiliado de ejemplo (solo para demostración).
+-- Contraseña definida de forma privada; regenera el hash con:
+--   php -r "echo password_hash('TU_CLAVE', PASSWORD_BCRYPT);"
 INSERT IGNORE INTO USUARIOS_REGISTRADOS
   (username, password_hash, rol, id_afiliado, cod_a)
 VALUES
   ('V-12345678',
    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
    'afiliado', 1, 'UPTAG-2019');
--- NOTA: El hash de arriba corresponde a la contraseña "password"
--- Cambia la contraseña ejecutando este PHP una vez:
--- echo password_hash('uptag2026', PASSWORD_BCRYPT);
+-- IMPORTANTE: reemplaza este hash de ejemplo por uno propio antes de cualquier despliegue.
 
 -- Movimientos de caja de ahorros de ejemplo
 INSERT INTO MOVIMIENTO_CUENTA (fecha, concepto, tipo, monto, saldo_despues, id_afiliado) VALUES
@@ -94,4 +87,4 @@ VALUES
 INSERT INTO CARTA_AVAL
   (medico_tratante, especialidad, centro_medico, procedimiento, monto_estimado, estado, id_afiliado)
 VALUES
-  ('Dr. Carlos González', 'Cardiología', 'Policlínica Los Llanos', 'Consulta cardiológica', 1200.00, 'aprobada', 1);
+  ('Dra. Dolinda Barbera', 'Cardiología', 'Policlínica Los Llanos', 'Consulta cardiológica', 1200.00, 'aprobada', 1);

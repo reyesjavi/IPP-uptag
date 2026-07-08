@@ -1,72 +1,90 @@
-# IPP-UPTAG — Portal de Servicios del Profesorado
+# IPP-UPTAG · Portal de Bienestar Institucional
 
-Sistema de gestión de beneficios sociales para el **Instituto de Previsión del Profesorado** de la Universidad Politécnica Territorial Alonso Gamero (UPTAG), Venezuela.
+Portal web **full-stack** para la gestión de los beneficios de bienestar social del profesorado universitario, desarrollado para el **Instituto de Previsión del Profesorado (IPP)** de la Universidad Politécnica Territorial Alonso Gamero (UPTAG), Venezuela.
 
----
-
-## Funcionalidades
-
-- **Afiliados**: dashboard personal, solicitudes de reembolso médico, cartas aval, directorio médico
-- **Caja de ahorros**: movimientos, saldo, solicitudes de retiro
-- **Administración**: gestión de afiliados, reembolsos, avales, reportes CSV, directorio médico (CRUD)
-- **Seguridad**: autenticación con TOTP 2FA, control de roles (admin / administrativo / afiliado), vigencia anual, protección CSRF
-- **Recuperación de contraseña**: vía SMTP (PHPMailer)
-- **Deploy automatizado**: GitHub Actions → rsync → VPS con PHP-FPM
+> 🎓 **Proyecto de grado académico**, desarrollado en solitario. La base de datos incluida contiene **datos de ejemplo/ficticios** con fines demostrativos; no corresponde a información real de personas.
 
 ---
 
-## Stack técnico
+## 🧩 El problema que resuelve
 
-| Capa        | Tecnología                              |
-|-------------|------------------------------------------|
-| Lenguaje    | PHP 8.2                                  |
-| Base de datos | MariaDB 10.6 / MySQL 8.x (PDO)        |
-| Servidor web | Nginx + PHP 8.2-FPM (producción)       |
-| Dev local   | XAMPP (Apache + PHP 8.2 + MySQL)        |
-| Email       | PHPMailer 6.9.3 (SMTP)                  |
-| 2FA         | TOTP RFC 6238 (Google Authenticator, Aegis, Authy) |
-| CI/CD       | GitHub Actions (sintaxis + rsync deploy) |
-| Sin framework | Sin Composer (PHPMailer instalado manualmente) |
+La gestión de los beneficios del profesorado (reembolsos médicos, cartas aval, directorio de médicos, vigencia anual de afiliación) se llevaba de forma manual y dispersa, lo que generaba demoras, pérdida de expedientes y falta de trazabilidad.
 
----
+Este portal **centraliza y digitaliza** ese proceso en una sola plataforma:
 
-## Estructura del proyecto
+- El **profesor afiliado** consulta sus beneficios, solicita reembolsos y avales, y accede al directorio médico desde un panel personal.
+- El personal **administrativo** procesa solicitudes, mantiene el directorio de médicos y genera reportes.
+- La **administración** controla afiliados, roles, vigencias y auditoría del sistema.
 
-```
-uptag_v8.2/
-├── admin/              # Panel administrativo (dashboard, afiliados, reembolsos, avales, reportes, 2FA)
-├── assets/             # CSS, JS, imágenes
-├── config/             # Configuración (base.php, database.php, env.php, schema.sql, migraciones)
-├── controllers/        # Lógica de negocio (SaludController, FinanzasController)
-├── docs/               # Documentación técnica (vps-setup.md)
-├── includes/           # Auth, header/footer compartidos
-├── lib/                # PHPMailer (manual), TOTP
-├── models/             # Acceso a datos (Model base, ReembolsoModel, FinanzasModel, MedicoModel)
-├── scripts/            # backup.sh, reparar_afiliados.php
-├── views/              # Plantillas de vistas (salud/, finanzas/)
-├── .env.example        # Plantilla de variables de entorno
-├── .github/workflows/  # CI/CD pipeline
-├── DEPLOY.md           # Guía de despliegue
-└── login.php           # Punto de entrada de autenticación
-```
+Todo con validación de identidad contra el **padrón oficial de agremiados** y controles de seguridad de nivel producción.
 
 ---
 
-## Configuración local (XAMPP)
+## 📸 Capturas de pantalla
 
-### 1. Clonar el repositorio
+<!-- Coloca las imágenes en docs/screenshots/ y actualiza las rutas. -->
+
+| Inicio de sesión | Panel del afiliado |
+|:---:|:---:|
+| ![Login](docs/screenshots/01-login.png) | ![Dashboard del afiliado](docs/screenshots/02-dashboard.png) |
+
+| Panel administrativo | Verificación 2FA (TOTP) |
+|:---:|:---:|
+| ![Panel admin](docs/screenshots/03-admin.png) | ![2FA TOTP](docs/screenshots/04-2fa.png) |
+
+---
+
+## 🛠️ Stack técnico
+
+| Capa | Tecnología |
+|------|------------|
+| **Backend** | PHP 8.2 con **PDO nativo** (sin framework, sin ORM) |
+| **Base de datos** | MySQL 8.x / MariaDB 10.6 |
+| **Frontend** | JavaScript (vanilla), HTML5, CSS3 |
+| **Correo** | PHPMailer 6.9 (SMTP, para recuperación de contraseña) |
+| **2FA** | TOTP RFC 6238 (Google Authenticator, Aegis, Authy) |
+| **Entorno local** | XAMPP (Apache + PHP + MySQL) |
+
+**Arquitectura sin framework, por decisión de diseño:** la aplicación se apoya en una capa MVC ligera propia (`models/`, `controllers/`, `views/`) para demostrar el dominio de los fundamentos —enrutado, capa de datos con PDO, seguridad— sin abstracciones de terceros.
+
+---
+
+## 🔒 Seguridad
+
+La seguridad se trató como requisito de primer nivel, no como añadido:
+
+- **RBAC (control de acceso por roles):** tres roles —`admin`, `administrativo`, `afiliado`— con permisos verificados en el servidor en cada acción.
+- **Autenticación en dos pasos (2FA):** TOTP RFC 6238 opcional por usuario, compatible con Google Authenticator, Aegis y Authy.
+- **Contraseñas con bcrypt:** almacenadas con `password_hash()` (bcrypt, cost 12). Nunca en texto plano.
+- **Consultas 100% preparadas con PDO:** todas las interacciones con la BD usan sentencias parametrizadas → protección contra inyección SQL.
+- **Protección CSRF:** token por sesión validado en todos los formularios POST.
+- **Anti fuerza bruta:** bloqueo temporal de la cuenta tras varios intentos fallidos de inicio de sesión.
+- **Gestión de secretos:** credenciales exclusivamente en `.env` (fuera del control de versiones); `config/database.php` no se versiona.
+- **Archivos protegidos:** los documentos subidos se sirven solo a través de un proxy PHP que valida sesión y pertenencia.
+- **HTTPS forzado** cuando `APP_ENV=production`.
+
+---
+
+## 🚀 Instalación local (XAMPP)
+
+### Requisitos
+
+- [XAMPP](https://www.apachefriends.org/) con **PHP 8.2+** y **MySQL/MariaDB**
+- Git
+
+### 1. Clonar en el `htdocs` de XAMPP
 
 ```bash
-git clone https://github.com/reyesjavi/IPP-uptag C:/xampp/htdocs/uptag_v8.2
+git clone https://github.com/reyesjavi/IPP-uptag C:/xampp/htdocs/uptag_v9
 ```
 
-### 2. Crear el archivo .env
+### 2. Configurar variables de entorno
 
 ```bash
 cp .env.example .env
 ```
 
-Editar `.env` con las credenciales locales:
+Edita `.env` con tus credenciales locales (valores por defecto de XAMPP):
 
 ```dotenv
 DB_HOST=localhost
@@ -74,14 +92,15 @@ DB_NAME=ippuptag
 DB_USER=root
 DB_PASS=
 APP_ENV=development
-UPLOAD_PATH=
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USER=tu@email.com
-MAIL_PASS=app_password_aqui
 ```
 
-### 3. Crear la base de datos
+### 3. Configurar la base de datos
+
+```bash
+cp config/database.example.php config/database.php
+```
+
+Crea la base de datos e importa el esquema, las migraciones y los datos de ejemplo:
 
 ```sql
 CREATE DATABASE ippuptag CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -89,50 +108,55 @@ CREATE DATABASE ippuptag CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 ```bash
 mysql -u root ippuptag < config/schema.sql
+# Migraciones incrementales (en orden)
 mysql -u root ippuptag < config/migracion_p2.sql
 mysql -u root ippuptag < config/migracion_p3.sql
+# Datos de ejemplo (agremiados y afiliados ficticios)
+mysql -u root ippuptag < config/datos_prueba.sql
 ```
 
-### 4. Acceder a la aplicación
+### 4. Abrir la aplicación
 
-Abrir `http://localhost/uptag_v8.2/`
+Inicia Apache y MySQL en el panel de XAMPP y visita:
 
----
-
-## Variables de entorno
-
-Ver `.env.example` para la lista completa. Las variables críticas:
-
-| Variable      | Descripción                                      | Valor dev por defecto |
-|---------------|--------------------------------------------------|-----------------------|
-| `DB_HOST`     | Host de la base de datos                         | `localhost`           |
-| `DB_NAME`     | Nombre de la base de datos                       | `ippuptag`            |
-| `DB_USER`     | Usuario de la BD                                 | `root`                |
-| `DB_PASS`     | Contraseña de la BD                              | _(vacío)_             |
-| `APP_ENV`     | Entorno (`development` / `production`)           | `development`         |
-| `UPLOAD_PATH` | Ruta de archivos subidos (vacío = dentro del webroot) | _(vacío)_        |
-| `MAIL_*`      | Configuración SMTP para recuperación de contraseña | —                  |
+```
+http://localhost/uptag_v9/
+```
 
 ---
 
-## Despliegue en producción
+## 📂 Estructura del proyecto
 
-Ver [`DEPLOY.md`](DEPLOY.md) para instrucciones completas.
-
-Resumen:
-1. Configurar secrets en GitHub (`SSH_HOST`, `SSH_USER`, `SSH_KEY`, `DEPLOY_PATH`)
-2. Configurar el VPS según [`docs/vps-setup.md`](docs/vps-setup.md)
-3. Crear `.env` en el VPS con credenciales de producción
-4. Hacer push a `main` — el pipeline despliega automáticamente
+```
+uptag_v9/
+├── admin/          # Panel administrativo (afiliados, reembolsos, avales, reportes, 2FA)
+├── api/            # Endpoints JSON (registro, etc.)
+├── assets/         # CSS, JS e imágenes
+├── config/         # base.php, database.php, env.php, schema.sql y migraciones
+├── controllers/    # Lógica de negocio (capa MVC ligera)
+├── includes/       # Autenticación, cabecera/pie compartidos
+├── lib/            # PHPMailer y TOTP (integrados manualmente, sin Composer)
+├── models/         # Acceso a datos con PDO
+├── views/          # Plantillas de vistas
+├── uploads/        # Archivos de usuarios (servidos vía proxy PHP)
+├── .env.example    # Plantilla de variables de entorno
+└── login.php       # Punto de entrada de autenticación
+```
 
 ---
 
-## Seguridad
+## 👥 Roles del sistema
 
-- Credenciales exclusivamente en `.env` (no rastreado por git)
-- `config/database.php` no está en el repositorio
-- Archivos subidos servidos únicamente a través de `ver_archivo.php` (valida sesión y pertenencia)
-- 2FA TOTP opcional por usuario administrador
-- CSRF en todos los formularios POST
-- Protección anti fuerza bruta: bloqueo tras 3 intentos fallidos
-- HTTPS forzado en `APP_ENV=production`
+| Rol | Descripción |
+|-----|-------------|
+| **admin** | Control total: usuarios, roles, vigencias, auditoría y configuración. |
+| **administrativo** | Procesa solicitudes de reembolso y aval, gestiona el directorio médico y genera reportes. |
+| **afiliado** | Profesor agremiado: consulta beneficios, solicita reembolsos/avales y gestiona su perfil y 2FA. |
+
+---
+
+## 📄 Licencia y autoría
+
+Proyecto de grado con fines **académicos y demostrativos**. Los datos incluidos son ficticios.
+
+Desarrollado en solitario como trabajo de grado.

@@ -140,9 +140,6 @@ require_once __DIR__ . '/includes/header.php';
             <button class="btn btn-outline" onclick="abrirCambioPass()">
               <i class="ti ti-lock"></i> Cambiar contraseña
             </button>
-            <a href="<?= url('constancia.php') ?>" class="btn btn-outline" target="_blank">
-              <i class="ti ti-download"></i> Constancia PDF
-            </a>
           </div>
         </div>
 

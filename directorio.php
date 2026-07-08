@@ -42,15 +42,15 @@ require_once __DIR__ . '/includes/header.php';
     <h3>Especialistas<?= $busqueda ? ' — resultados para "' . htmlspecialchars($busqueda) . '"' : '' ?></h3>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Nombre</th><th>Especialidad</th><th>Cédula</th><th>Contacto</th><th>Servicio</th></tr></thead>
+        <thead><tr><th>Especialista</th><th>Especialidad</th><th>Horario</th><th>Servicios</th><th>Contacto</th></tr></thead>
         <tbody>
           <?php foreach ($medicos as $m): ?>
           <tr>
             <td><?= htmlspecialchars('Dr(a). ' . $m['nombre'] . ' ' . $m['apellido']) ?></td>
             <td><?= htmlspecialchars($m['especialidad'] ?? '—') ?></td>
-            <td><?= htmlspecialchars($m['cedula'] ?? '—') ?></td>
+            <td><?= htmlspecialchars($m['horario'] ?? '—') ?></td>
+            <td><?= htmlspecialchars($m['servicios'] ?? '—') ?></td>
             <td><?= htmlspecialchars($m['numero_contacto'] ?? '—') ?></td>
-            <td><?= htmlspecialchars($m['tipo_servicio'] ?? '—') ?></td>
           </tr>
           <?php endforeach; ?>
         </tbody>
