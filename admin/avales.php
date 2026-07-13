@@ -7,8 +7,6 @@ require_once __DIR__ . '/../config/base.php';
 require_once __DIR__ . '/../includes/auth.php';
 requiereRol('admin','administrativo');
 $pdo   = getDB();
-$flash = $_SESSION['flash'] ?? null;
-unset($_SESSION['flash']);
 
 if ($_SERVER['REQUEST_METHOD']==='POST') {
     verificarCsrf();
@@ -19,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         $pdo->prepare("UPDATE carta_aval SET estado=:e, fecha_vencimiento=DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE id_carta=:id")
             ->execute([':e'=>$estado,':id'=>$id]);
         registrarLog('aval_'.$estado, "Carta aval #$id $estado");
-        $_SESSION['flash'] = ['ok'=>true,'msg'=>'Carta aval '.$estado.' correctamente.'];
+        $_SESSION['flash_admin'] = ['ok'=>true,'msg'=>'Carta aval '.$estado.' correctamente.'];
     }
     header('Location: '.url('admin/avales.php')); exit;
 }
@@ -32,9 +30,6 @@ $avales = $pdo->query("
 
 require_once __DIR__ . '/header.php';
 ?>
-<?php if ($flash): ?>
-  <div class="flash-msg <?= $flash['ok']?'flash-ok':'flash-err' ?>"><?= htmlspecialchars($flash['msg']) ?></div>
-<?php endif; ?>
 
 <div class="sc">
   <h3>Cartas aval (<?= count($avales) ?>)</h3>

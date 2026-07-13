@@ -84,6 +84,10 @@ EOF
 mysql -u root -p ippuptag < config/schema.sql
 mysql -u root -p ippuptag < config/migracion_p2.sql
 mysql -u root -p ippuptag < config/migracion_p3.sql
+mysql -u root -p ippuptag < config/migraciones_v10.sql
+mysql -u root -p ippuptag < config/migraciones_v11.sql
+mysql -u root -p ippuptag < config/migraciones_v12.sql
+mysql -u root -p ippuptag < config/migraciones_v13.sql
 ```
 
 ### 5. Crear directorio de uploads

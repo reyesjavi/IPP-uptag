@@ -6,8 +6,6 @@ require_once __DIR__ . '/../config/base.php';
 require_once __DIR__ . '/../includes/auth.php';
 requiereRol('admin','administrativo');
 $pdo   = getDB();
-$flash = $_SESSION['flash'] ?? null;
-unset($_SESSION['flash']);
 
 // ── Acción: aprobar o rechazar ──
 if ($_SERVER['REQUEST_METHOD']==='POST') {
@@ -23,13 +21,13 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         $reemb = $rStmt->fetch();
 
         if (!$reemb) {
-            $_SESSION['flash'] = ['ok'=>false,'msg'=>'Reembolso no encontrado.'];
+            $_SESSION['flash_admin'] = ['ok'=>false,'msg'=>'Reembolso no encontrado.'];
         } elseif (!in_array($reemb['estado'], ['pendiente','en_revision'])) {
-            $_SESSION['flash'] = ['ok'=>false,'msg'=>'Este reembolso ya fue procesado por otro usuario.'];
+            $_SESSION['flash_admin'] = ['ok'=>false,'msg'=>'Este reembolso ya fue procesado por otro usuario.'];
         } elseif ($accion==='aprobar' && $monto > (float)$reemb['monto_solicitado']) {
-            $_SESSION['flash'] = ['ok'=>false,'msg'=>'El monto aprobado no puede superar el solicitado (Bs. '.number_format($reemb['monto_solicitado'],2,',','.').').'];
+            $_SESSION['flash_admin'] = ['ok'=>false,'msg'=>'El monto aprobado no puede superar el solicitado (Bs. '.number_format($reemb['monto_solicitado'],2,',','.').').'];
         } elseif ($accion==='aprobar' && $monto <= 0) {
-            $_SESSION['flash'] = ['ok'=>false,'msg'=>'El monto aprobado debe ser mayor a cero.'];
+            $_SESSION['flash_admin'] = ['ok'=>false,'msg'=>'El monto aprobado debe ser mayor a cero.'];
         } else {
             $estado = $accion==='aprobar' ? 'aprobado' : 'rechazado';
             // UPDATE condicional anti race-condition
@@ -41,9 +39,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 
             if ($stmt->rowCount() > 0) {
                 registrarLog('reembolso_'.$estado, "Reembolso #$id $estado");
-                $_SESSION['flash'] = ['ok'=>true,'msg'=>'Reembolso '.($accion==='aprobar'?'aprobado':'rechazado').' correctamente.'];
+                $_SESSION['flash_admin'] = ['ok'=>true,'msg'=>'Reembolso '.($accion==='aprobar'?'aprobado':'rechazado').' correctamente.'];
             } else {
-                $_SESSION['flash'] = ['ok'=>false,'msg'=>'El reembolso ya había sido procesado.'];
+                $_SESSION['flash_admin'] = ['ok'=>false,'msg'=>'El reembolso ya había sido procesado.'];
             }
         }
     }
@@ -70,9 +68,6 @@ $reembolsos = $stmt->fetchAll();
 require_once __DIR__ . '/header.php';
 ?>
 
-<?php if ($flash): ?>
-  <div class="flash-msg <?= $flash['ok']?'flash-ok':'flash-err' ?>"><?= htmlspecialchars($flash['msg']) ?></div>
-<?php endif; ?>
 
 <!-- Filtros -->
 <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">

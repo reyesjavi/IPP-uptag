@@ -80,8 +80,13 @@ class ReembolsoModel extends Model
 
     public function getBeneficiarios(int $afilId): array
     {
+        // Solo familiares activos; el titular ya tiene su opción fija
+        // "Titular (yo)" en el selector (id_beneficiario NULL).
         return $this->query(
-            "SELECT id_beneficiario, nombre, apellido, parentesco FROM beneficiario WHERE id_afiliado = :id",
+            "SELECT id_beneficiario, nombre, apellido, parentesco
+             FROM beneficiario
+             WHERE id_afiliado = :id AND activo = 1 AND parentesco != 'titular'
+             ORDER BY nombre",
             [':id' => $afilId]
         );
     }
@@ -90,7 +95,7 @@ class ReembolsoModel extends Model
     public function beneficiarioPerteneceA(int $benId, int $afilId): bool
     {
         return (bool) $this->scalar(
-            "SELECT 1 FROM beneficiario WHERE id_beneficiario = :ben AND id_afiliado = :afil LIMIT 1",
+            "SELECT 1 FROM beneficiario WHERE id_beneficiario = :ben AND id_afiliado = :afil AND activo = 1 LIMIT 1",
             [':ben' => $benId, ':afil' => $afilId]
         );
     }

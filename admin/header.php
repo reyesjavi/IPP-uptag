@@ -57,6 +57,9 @@ unset($_SESSION['flash_admin']);
     <a href="<?= url('admin/avales.php') ?>" class="sidebar-link <?= ($activeAdmin??'')==='avales' ?'active':'' ?>">
       <i class="ti ti-file-certificate"></i> Cartas Aval
     </a>
+    <a href="<?= url('admin/citas.php') ?>" class="sidebar-link <?= ($activeAdmin??'')==='citas' ?'active':'' ?>">
+      <i class="ti ti-calendar-heart"></i> Citas
+    </a>
     <a href="<?= url('admin/reportes.php') ?>" class="sidebar-link <?= ($activeAdmin??'')==='reportes' ?'active':'' ?>">
       <i class="ti ti-chart-bar"></i> Reportes
     </a>

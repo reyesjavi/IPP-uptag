@@ -7,8 +7,6 @@ require_once __DIR__ . '/../config/base.php';
 require_once __DIR__ . '/../includes/auth.php';
 requiereRol('admin','administrativo');
 $pdo   = getDB();
-$flash = $_SESSION['flash'] ?? null;
-unset($_SESSION['flash']);
 
 // ── Aprobar solicitud ──────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['accion']??'')==='aprobar') {
@@ -57,10 +55,10 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['accion']??'')==='aprobar') {
 
                     $pdo->commit();
                     registrarLog('solicitud_aprobada',"Solicitud #$idSol aprobada para CI: {$sol['ci']}");
-                    $_SESSION['flash'] = ['ok'=>true,'msg'=>"Solicitud aprobada. Usuario {$sol['ci']} puede acceder al portal."];
+                    $_SESSION['flash_admin'] = ['ok'=>true,'msg'=>"Solicitud aprobada. Usuario {$sol['ci']} puede acceder al portal."];
                 } catch (Exception $e) {
                     $pdo->rollBack();
-                    $_SESSION['flash'] = ['ok'=>false,'msg'=>'Error al aprobar: '.$e->getMessage()];
+                    $_SESSION['flash_admin'] = ['ok'=>false,'msg'=>'Error al aprobar: '.$e->getMessage()];
                 }
             }
         }
@@ -81,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['accion']??'')==='rechazar') 
             WHERE id_solicitud=:id
         ")->execute([':motivo'=>$motivo,':admin'=>$_SESSION['usuario_id'],':id'=>$idSol]);
         registrarLog('solicitud_rechazada',"Solicitud #$idSol rechazada. Motivo: $motivo");
-        $_SESSION['flash'] = ['ok'=>false,'msg'=>"Solicitud #$idSol rechazada."];
+        $_SESSION['flash_admin'] = ['ok'=>false,'msg'=>"Solicitud #$idSol rechazada."];
     }
     header('Location: '.url('admin/solicitudes.php')); exit;
 }
@@ -105,9 +103,6 @@ $contadores = $pdo->query("
 require_once __DIR__ . '/header.php';
 ?>
 
-<?php if ($flash): ?>
-  <div class="flash-msg <?= $flash['ok']?'flash-ok':'flash-err' ?>"><?= htmlspecialchars($flash['msg']) ?></div>
-<?php endif; ?>
 
 <!-- Filtros con contadores -->
 <div style="display:flex;gap:8px;margin-bottom:1.2rem;flex-wrap:wrap">

@@ -5,6 +5,7 @@ require_once __DIR__ . '/../config/base.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/mailer.php';
+require_once __DIR__ . '/../lib/integracion/Integraciones.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -50,12 +51,12 @@ try {
 
     // ══════════════════════════════════════════════════════
     // VALIDACIÓN 1: ¿Existe la CI en el padrón de agremiados?
+    // El padrón es del sistema de nómina: se consulta SIEMPRE a
+    // través del provider (mock hoy, feed real mañana).
     // ══════════════════════════════════════════════════════
-    $stmt = $pdo->prepare("SELECT id_agremiado, nombre, apellido, activo, correo FROM agremiado WHERE ci = :ci LIMIT 1");
-    $stmt->execute([':ci' => $ci]);
-    $agremiado = $stmt->fetch();
+    $padron = Integraciones::estadoAfiliacion()->buscarPorCedula($ci);
 
-    if (!$agremiado) {
+    if (!$padron) {
         http_response_code(403);
         echo json_encode([
             'ok'     => false,
@@ -68,7 +69,7 @@ try {
     // ══════════════════════════════════════════════════════
     // VALIDACIÓN 2: ¿El agremiado está activo?
     // ══════════════════════════════════════════════════════
-    if (!$agremiado['activo']) {
+    if (!$padron->activo) {
         http_response_code(403);
         echo json_encode([
             'ok'     => false,
@@ -78,7 +79,7 @@ try {
         exit;
     }
 
-    $idAgremiado = $agremiado['id_agremiado'];
+    $idAgremiado = $padron->idAgremiadoLocal;
     $anioActual  = (int) date('Y');
     $hash        = password_hash($password, PASSWORD_BCRYPT, ['cost'=>12]);
 
@@ -125,7 +126,7 @@ try {
         echo json_encode([
             'ok'     => true,
             'codigo' => 'VIGENCIA_RENOVADA',
-            'msg'    => "¡Vigencia renovada para $anioActual, {$agremiado['nombre']}! Ya puedes iniciar sesión.",
+            'msg'    => "¡Vigencia renovada para $anioActual, {$padron->nombre}! Ya puedes iniciar sesión.",
             'redirigir' => true
         ]);
         exit;
@@ -136,13 +137,9 @@ try {
     // ══════════════════════════════════════════════════════
     $pdo->beginTransaction();
 
-    // Traer datos completos del agremiado para copiarlos al afiliado
-    $datosAgr = $pdo->prepare("SELECT nombre, apellido, fecha_nacimiento, correo, telefono FROM agremiado WHERE id_agremiado = :id");
-    $datosAgr->execute([':id' => $idAgremiado]);
-    $ag = $datosAgr->fetch();
-
     // El afiliado se materializa junto con la cuenta: todo agremiado presente
     // en el padrón obtiene acceso activo de inmediato, sin aprobación previa.
+    // Los datos personales se copian del DTO del padrón (provider de nómina).
 
     // 1) Buscar si ya existe un afiliado con esa CI
     $stmtAfil = $pdo->prepare("SELECT id_afiliado FROM afiliado WHERE ci = :ci LIMIT 1");
@@ -164,23 +161,32 @@ try {
                 exit;
             }
             $correoAfil = $correo;
-        } elseif (!empty($ag['correo'])) {
+        } elseif (!empty($padron->correo)) {
             $stmtChkCorreo = $pdo->prepare("SELECT 1 FROM afiliado WHERE correo = :c LIMIT 1");
-            $stmtChkCorreo->execute([':c' => $ag['correo']]);
-            $correoAfil = $stmtChkCorreo->fetchColumn() ? null : $ag['correo'];
+            $stmtChkCorreo->execute([':c' => $padron->correo]);
+            $correoAfil = $stmtChkCorreo->fetchColumn() ? null : $padron->correo;
         }
 
+        // tipo_afiliado: fuente preferida el feed de nómina; si el feed no
+        // lo trae, queda el default y el admin/afiliado podrá fijarlo luego.
+        $tipoAfiliado = $padron->tipoAfiliado ?: 'profesor_activo';
+
+        // Plan de beneficios vigente (config-driven, tabla plan)
+        $idPlan = $pdo->query("SELECT id_plan FROM plan WHERE activo = 1 ORDER BY id_plan LIMIT 1")->fetchColumn() ?: null;
+
         $pdo->prepare("
-            INSERT INTO afiliado (id_agremiado, nombre, apellido, ci, fecha_nacimiento, correo, telefono, fecha_ingreso, activo, cod_a, cod_pm)
-            VALUES (:idag, :nom, :ape, :ci, :fnac, :correo, :tel, CURDATE(), 1, NULL, NULL)
+            INSERT INTO afiliado (id_agremiado, nombre, apellido, ci, fecha_nacimiento, correo, telefono, fecha_ingreso, activo, tipo_afiliado, id_plan, cod_a, cod_pm)
+            VALUES (:idag, :nom, :ape, :ci, :fnac, :correo, :tel, CURDATE(), 1, :tipo, :plan, NULL, NULL)
         ")->execute([
             ':idag'   => $idAgremiado,
-            ':nom'    => $ag['nombre'],
-            ':ape'    => $ag['apellido'],
+            ':nom'    => $padron->nombre,
+            ':ape'    => $padron->apellido,
             ':ci'     => $ci,
-            ':fnac'   => $ag['fecha_nacimiento'] ?: null,
+            ':fnac'   => $padron->fechaNacimiento,
             ':correo' => $correoAfil,
-            ':tel'    => $telefono ?: $ag['telefono'],
+            ':tel'    => $telefono ?: $padron->telefono,
+            ':tipo'   => $tipoAfiliado,
+            ':plan'   => $idPlan,
         ]);
         $afiliadoVinc = (int) $pdo->lastInsertId();
 
@@ -190,13 +196,13 @@ try {
         $numBen = (int)$stmtNumBen->fetchColumn();
         $pdo->prepare("
             INSERT IGNORE INTO beneficiario (numero_beneficiario, ci, nombre, apellido, fecha_nacimiento, parentesco, id_afiliado)
-            VALUES (:num, :ci, :nom, :ape, :fnac, 'Titular', :afil)
+            VALUES (:num, :ci, :nom, :ape, :fnac, 'titular', :afil)
         ")->execute([
             ':num'  => $numBen,
             ':ci'   => $ci,
-            ':nom'  => $ag['nombre'],
-            ':ape'  => $ag['apellido'],
-            ':fnac' => $ag['fecha_nacimiento'] ?: null,
+            ':nom'  => $padron->nombre,
+            ':ape'  => $padron->apellido,
+            ':fnac' => $padron->fechaNacimiento,
             ':afil' => $afiliadoVinc,
         ]);
     }
@@ -232,8 +238,8 @@ try {
     echo json_encode([
         'ok'        => true,
         'codigo'    => 'REGISTRO_OK',
-        'msg'       => "¡Listo, {$agremiado['nombre']}! Tu cuenta ya está activa. Ya puedes iniciar sesión.",
-        'nombre'    => $agremiado['nombre'].' '.$agremiado['apellido'],
+        'msg'       => "¡Listo, {$padron->nombre}! Tu cuenta ya está activa. Ya puedes iniciar sesión.",
+        'nombre'    => $padron->nombre.' '.$padron->apellido,
         'redirigir' => true,
     ]);
 

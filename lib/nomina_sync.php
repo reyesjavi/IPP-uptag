@@ -1,9 +1,10 @@
 <?php
 // lib/nomina_sync.php — Integración futura con la nómina de la UPTAG
 //
-// ESTADO: PENDIENTE — la administración de la UPTAG no ha provisto acceso
-// a la base de datos de nómina ni a una API. Este archivo es un PLACEHOLDER
-// que documenta el plan de integración para la siguiente fase del proyecto.
+// ESTADO: OBSOLETO — reemplazado por la capa de providers en
+// lib/integracion/ (EstadoAfiliacionProvider + mock seleccionable por
+// .env). Ver INTEGRACION.md. Se conserva solo como referencia histórica;
+// no agregar consumidores nuevos de este archivo.
 //
 // Cuando la integración esté disponible, esta función deberá:
 //   1. Leer el origen de datos de nómina (Excel/CSV exportado por RRHH,

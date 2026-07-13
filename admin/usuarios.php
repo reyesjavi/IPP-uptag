@@ -6,8 +6,6 @@ require_once __DIR__ . '/../config/base.php';
 require_once __DIR__ . '/../includes/auth.php';
 requiereRol('admin');
 $pdo   = getDB();
-$flash = $_SESSION['flash'] ?? null;
-unset($_SESSION['flash']);
 
 // ── Crear usuario ──
 if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['accion']??'')==='crear') {
@@ -19,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['accion']??'')==='crear') {
 
     if ($username && $password && in_array($rol,['admin','administrativo','afiliado'])) {
         if (strlen($password) < 16) {
-            $_SESSION['flash'] = ['ok'=>false,'msg'=>'La contraseña debe tener al menos 16 caracteres.'];
+            $_SESSION['flash_admin'] = ['ok'=>false,'msg'=>'La contraseña debe tener al menos 16 caracteres.'];
         } else {
             $hash = password_hash($password, PASSWORD_BCRYPT, ['cost'=>12]);
             try {
@@ -28,13 +26,13 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['accion']??'')==='crear') {
                     VALUES (:u, :h, :r, 1, :a)
                 ")->execute([':u'=>$username,':h'=>$hash,':r'=>$rol,':a'=>$afilId]);
                 registrarLog('usuario_creado', "Usuario '$username' creado con rol $rol");
-                $_SESSION['flash'] = ['ok'=>true,'msg'=>"Usuario '$username' creado correctamente."];
+                $_SESSION['flash_admin'] = ['ok'=>true,'msg'=>"Usuario '$username' creado correctamente."];
             } catch (PDOException $e) {
-                $_SESSION['flash'] = ['ok'=>false,'msg'=>'Error: ese usuario ya existe.'];
+                $_SESSION['flash_admin'] = ['ok'=>false,'msg'=>'Error: ese usuario ya existe.'];
             }
         }
     } else {
-        $_SESSION['flash'] = ['ok'=>false,'msg'=>'Completa todos los campos correctamente.'];
+        $_SESSION['flash_admin'] = ['ok'=>false,'msg'=>'Completa todos los campos correctamente.'];
     }
     header('Location: '.url('admin/usuarios.php')); exit;
 }
@@ -48,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['accion']??'')==='toggle') {
         $pdo->prepare("UPDATE usuarios_registrados SET activo=:a WHERE id_usuario=:id")
             ->execute([':a'=>$activo,':id'=>$id]);
         registrarLog('usuario_'.($activo?'activado':'desactivado'),"Usuario #$id");
-        $_SESSION['flash'] = ['ok'=>true,'msg'=>'Usuario '.($activo?'activado':'desactivado').'.'];
+        $_SESSION['flash_admin'] = ['ok'=>true,'msg'=>'Usuario '.($activo?'activado':'desactivado').'.'];
     }
     header('Location: '.url('admin/usuarios.php')); exit;
 }
@@ -60,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['accion']??'')==='eliminar') 
     $passAdmin     = $_POST['pass_admin'] ?? '';
 
     if (!$id || $id === intval($_SESSION['usuario_id'])) {
-        $_SESSION['flash'] = ['ok'=>false,'msg'=>'No puedes eliminar tu propia cuenta.'];
+        $_SESSION['flash_admin'] = ['ok'=>false,'msg'=>'No puedes eliminar tu propia cuenta.'];
         header('Location: '.url('admin/usuarios.php')); exit;
     }
 
@@ -70,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['accion']??'')==='eliminar') 
     $adminData = $stmtAdmin->fetch();
 
     if (!$adminData || !password_verify($passAdmin, $adminData['password_hash'])) {
-        $_SESSION['flash'] = ['ok'=>false,'msg'=>'Contraseña incorrecta. No se eliminó el usuario.'];
+        $_SESSION['flash_admin'] = ['ok'=>false,'msg'=>'Contraseña incorrecta. No se eliminó el usuario.'];
         header('Location: '.url('admin/usuarios.php')); exit;
     }
 
@@ -81,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['accion']??'')==='eliminar') 
 
     $pdo->prepare("DELETE FROM usuarios_registrados WHERE id_usuario=:id")->execute([':id'=>$id]);
     registrarLog('usuario_eliminado',"Usuario '$userElim' (#$id) eliminado por admin");
-    $_SESSION['flash'] = ['ok'=>true,'msg'=>"Usuario '$userElim' eliminado correctamente."];
+    $_SESSION['flash_admin'] = ['ok'=>true,'msg'=>"Usuario '$userElim' eliminado correctamente."];
     header('Location: '.url('admin/usuarios.php')); exit;
 }
 
@@ -97,9 +95,6 @@ $afiliados = $pdo->query("SELECT id_afiliado, nombre, apellido, ci FROM afiliado
 require_once __DIR__ . '/header.php';
 ?>
 
-<?php if ($flash): ?>
-  <div class="flash-msg <?= $flash['ok']?'flash-ok':'flash-err' ?>"><?= htmlspecialchars($flash['msg']) ?></div>
-<?php endif; ?>
 
 <div style="display:grid;grid-template-columns:1.8fr 1fr;gap:1.2rem">
 

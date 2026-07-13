@@ -3,6 +3,7 @@ $pageTitle = 'Inicio';
 $activeNav = 'dashboard';
 require_once __DIR__ . '/config/base.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/lib/integracion/Integraciones.php';
 requiereLogin();
 $pdo      = getDB();
 $rolActual = $_SESSION['usuario_rol'] ?? 'afiliado';
@@ -70,6 +71,26 @@ if ($afilId && $esAfiliado) {
     }
 }
 
+// ── Fronteras externas: saldo de consultas (facturación) y estado de
+// afiliación (nómina). Si un provider falla, el dashboard sigue
+// funcionando sin ese bloque (modo degradado, nunca bloquea).
+$saldoConsultas = $tarifaConsulta = $estadoNomina = null;
+if ($esAfiliado && $afilId && !empty($_SESSION['usuario_ci'])) {
+    $ciSesion = $_SESSION['usuario_ci'];
+    try {
+        $ledger         = Integraciones::consultas();
+        $saldoConsultas = $ledger->saldo($ciSesion);
+        $tarifaConsulta = $ledger->tarifa('consulta');
+    } catch (Throwable $e) {
+        error_log('[UPTAG Dashboard] provider facturación no disponible: ' . $e->getMessage());
+    }
+    try {
+        $estadoNomina = Integraciones::estadoAfiliacion()->obtenerEstado($ciSesion);
+    } catch (Throwable $e) {
+        error_log('[UPTAG Dashboard] provider nómina no disponible: ' . $e->getMessage());
+    }
+}
+
 // Nombre a mostrar — priorizar sesión actualizada, luego afiliado, luego CI
 $nombreCompleto = trim(($afiliado['nombre'] ?? '') . ' ' . ($afiliado['apellido'] ?? ''));
 if (!$nombreCompleto) {
@@ -97,6 +118,72 @@ require_once __DIR__ . '/includes/header.php';
       <?php endif; ?>
     </p>
   </div>
+
+  <?php if ($esAfiliado && $afilId && $saldoConsultas): ?>
+  <!-- Lo primero que ve el afiliado: consultas del plan (datos del
+       sistema de facturación vía provider; nada se calcula localmente) -->
+  <div class="card" style="margin-bottom:1.2rem">
+    <div class="card-title">
+      <span><i class="ti ti-calendar-heart" style="color:var(--primary);margin-right:6px"></i>Mis consultas</span>
+      <span>Consultas médicas de tu plan este año</span>
+    </div>
+    <div class="metrics" style="margin-bottom:1rem">
+      <div class="metric">
+        <div class="metric-label">Consultas restantes</div>
+        <div class="metric-val" style="color:<?= $saldoConsultas->restantes > 0 ? 'var(--primary)' : 'var(--text-3)' ?>">
+          <?= $saldoConsultas->restantes ?>
+        </div>
+        <div class="metric-sub up">
+          <?= $saldoConsultas->usadas ?> de <?= $saldoConsultas->incluidas ?> usadas<?= $saldoConsultas->poolCompartido ? ' (grupo familiar)' : '' ?>
+        </div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Costo por consulta</div>
+        <?php if ($saldoConsultas->restantes > 0): ?>
+          <div class="metric-val" style="font-size:18px;color:var(--primary)">Sin costo</div>
+          <div class="metric-sub up"><span class="badge badge-green">Incluida en tu plan</span></div>
+        <?php elseif ($tarifaConsulta): ?>
+          <div class="metric-val" style="font-size:18px">
+            Bs. <?= number_format($tarifaConsulta->precioBase * (1 - ($tarifaConsulta->descuentoAplicable ?? 0)), 2, ',', '.') ?>
+          </div>
+          <div class="metric-sub up">
+            <?= $tarifaConsulta->descuentoAplicable !== null
+                ? '<span class="badge badge-blue">' . round($tarifaConsulta->descuentoAplicable * 100) . '% de descuento</span>'
+                : 'Tarifa vigente' ?>
+          </div>
+        <?php else: ?>
+          <div class="metric-val" style="font-size:18px">—</div>
+          <div class="metric-sub up">Tarifa por confirmar</div>
+        <?php endif; ?>
+      </div>
+      <?php if ($estadoNomina): ?>
+      <div class="metric">
+        <?php
+          [$enCls, $enLbl] = match($estadoNomina->estado) {
+              'moroso'     => ['badge-amber', 'Moroso'],
+              'suspendido' => ['badge-red',   'Suspendido'],
+              'inactivo'   => ['badge-red',   'Inactivo'],
+              default      => ['badge-green', 'Al día'],
+          };
+        ?>
+        <div class="metric-label">Afiliación (nómina)</div>
+        <div class="metric-val" style="font-size:18px"><?= $enLbl ?></div>
+        <div class="metric-sub up">
+          <span class="badge <?= $enCls ?>"><?= $enLbl ?></span>
+          <?php if ($estadoNomina->periodo): ?>
+            <span style="font-size:11px;color:var(--text-3)">Período <?= htmlspecialchars($estadoNomina->periodo) ?></span>
+          <?php endif; ?>
+        </div>
+      </div>
+      <?php endif; ?>
+    </div>
+    <div class="btn-row">
+      <a href="<?= url('citas.php') ?>" class="btn btn-teal" style="display:inline-flex">
+        <i class="ti ti-calendar-plus"></i> Agendar cita con especialista
+      </a>
+    </div>
+  </div>
+  <?php endif; ?>
 
   <?php if ($esAfiliado && $afilId): ?>
   <div class="btn-row" style="margin-bottom:1.2rem">
@@ -192,17 +279,16 @@ require_once __DIR__ . '/includes/header.php';
     </div>
     <div class="metric">
       <?php
-        $sit = $afiliado['situacion'] ?? 'activo';
-        [$sitCls, $sitLbl] = match($sit) {
-            'jubilado'   => ['badge-blue',  'Jubilado'],
-            'suspendido' => ['badge-amber', 'Suspendido'],
-            'egresado'   => ['badge',       'Egresado'],
-            default      => ['badge-green', 'Activo'],
-        };
+        // tipo_afiliado reemplaza a la deprecada `situacion`; su fuente
+        // preferida es el feed de nómina (EstadoAfiliacionProvider).
+        $tipoAfil = $estadoNomina->tipoAfiliado ?? $afiliado['tipo_afiliado'] ?? 'profesor_activo';
+        [$sitCls, $sitLbl] = $tipoAfil === 'profesor_jubilado'
+            ? ['badge-blue',  'Jubilado']
+            : ['badge-green', 'Activo'];
       ?>
-      <div class="metric-label">Situación</div>
+      <div class="metric-label">Condición</div>
       <div class="metric-val" style="font-size:18px"><?= $sitLbl ?></div>
-      <div class="metric-sub up"><span class="badge <?= $sitCls ?>"><?= $sitLbl ?></span></div>
+      <div class="metric-sub up"><span class="badge <?= $sitCls ?>">Profesor <?= strtolower($sitLbl) ?></span></div>
     </div>
   </div>
 
@@ -213,6 +299,9 @@ require_once __DIR__ . '/includes/header.php';
         <a href="<?= url('salud.php?tab=reimb') ?>" class="module-btn">
           <div class="module-icon" style="background:var(--primary-light)"><i class="ti ti-stethoscope" style="color:var(--primary)"></i></div><p>Reembolso</p>
         </a>
+        <a href="<?= url('citas.php') ?>" class="module-btn">
+          <div class="module-icon" style="background:var(--primary-light)"><i class="ti ti-calendar-heart" style="color:var(--primary)"></i></div><p>Citas</p>
+        </a>
         <a href="<?= url('salud.php?tab=aval') ?>" class="module-btn">
           <div class="module-icon" style="background:var(--primary-light)"><i class="ti ti-file-certificate" style="color:var(--primary)"></i></div><p>Carta Aval</p>
         </a>
@@ -221,6 +310,9 @@ require_once __DIR__ . '/includes/header.php';
         </a>
         <a href="<?= url('directorio.php') ?>" class="module-btn">
           <div class="module-icon" style="background:var(--blue-light)"><i class="ti ti-address-book" style="color:var(--blue)"></i></div><p>Directorio</p>
+        </a>
+        <a href="<?= url('beneficiarios.php') ?>" class="module-btn">
+          <div class="module-icon" style="background:var(--blue-light)"><i class="ti ti-users" style="color:var(--blue)"></i></div><p>Mi Familia</p>
         </a>
         <a href="<?= url('perfil.php') ?>" class="module-btn">
           <div class="module-icon" style="background:var(--primary-light)"><i class="ti ti-user" style="color:var(--primary)"></i></div><p>Mi Perfil</p>

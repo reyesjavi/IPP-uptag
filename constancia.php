@@ -18,9 +18,11 @@ if (!$afilId) {
     exit;
 }
 
+require_once __DIR__ . '/lib/integracion/Integraciones.php';
+
 $pdo  = getDB();
 $stmt = $pdo->prepare("
-    SELECT a.nombre, a.apellido, a.ci, a.fecha_ingreso, a.activo, a.situacion, a.cod_pm,
+    SELECT a.nombre, a.apellido, a.ci, a.fecha_ingreso, a.activo, a.cod_pm,
            p.costo
     FROM afiliado a
     LEFT JOIN plan_medico p ON p.cod_pm = a.cod_pm
@@ -37,8 +39,17 @@ if (!$af) {
 }
 
 // No emitir una constancia de "afiliado activo" si el afiliado no lo está.
-$situacion = $af['situacion'] ?? 'activo';
-if (empty($af['activo']) || in_array($situacion, ['suspendido', 'egresado'], true)) {
+// El bloqueo local (activo) se complementa con el estado que reporte la
+// nómina (suspendido/inactivo). Si el provider no responde o no tiene
+// datos, NO se bloquea (mismo criterio que el resto del portal).
+$estadoNomina = null;
+try {
+    $estadoNomina = Integraciones::estadoAfiliacion()->obtenerEstado($af['ci']);
+} catch (Throwable $e) {
+    error_log('[UPTAG Constancia] provider nómina no disponible: ' . $e->getMessage());
+}
+$estadoPago = $estadoNomina->estado ?? 'activo';
+if (empty($af['activo']) || in_array($estadoPago, ['suspendido', 'inactivo'], true)) {
     http_response_code(403);
     header('Content-Type: text/html; charset=utf-8');
     echo '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Constancia no disponible</title>'
@@ -47,7 +58,7 @@ if (empty($af['activo']) || in_array($situacion, ['suspendido', 'egresado'], tru
        . '<p>Tu afiliación no se encuentra activa en este momento, por lo que no es posible emitir '
        . 'una constancia de afiliación. Contacta a la administración del IPP para regularizar tu situación.</p>'
        . '<a href="' . url('perfil.php') . '">&larr; Volver al perfil</a></body></html>';
-    registrarLog('constancia_denegada', "Constancia denegada por estado: activo={$af['activo']} situacion=$situacion");
+    registrarLog('constancia_denegada', "Constancia denegada por estado: activo={$af['activo']} estado_nomina=$estadoPago");
     exit;
 }
 

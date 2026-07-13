@@ -12,7 +12,7 @@ La gestión de los beneficios del profesorado (reembolsos médicos, cartas aval,
 
 Este portal **centraliza y digitaliza** ese proceso en una sola plataforma:
 
-- El **profesor afiliado** consulta sus beneficios, solicita reembolsos y avales, y accede al directorio médico desde un panel personal.
+- El **profesor afiliado** consulta sus beneficios, agenda citas con especialistas del IPP, ve las consultas restantes de su plan, gestiona su carga familiar, solicita reembolsos y avales, y accede al directorio médico desde un panel personal.
 - El personal **administrativo** procesa solicitudes, mantiene el directorio de médicos y genera reportes.
 - La **administración** controla afiliados, roles, vigencias y auditoría del sistema.
 
@@ -46,6 +46,8 @@ Todo con validación de identidad contra el **padrón oficial de agremiados** y 
 | **Entorno local** | XAMPP (Apache + PHP + MySQL) |
 
 **Arquitectura sin framework, por decisión de diseño:** la aplicación se apoya en una capa MVC ligera propia (`models/`, `controllers/`, `views/`) para demostrar el dominio de los fundamentos —enrutado, capa de datos con PDO, seguridad— sin abstracciones de terceros.
+
+**Fronteras con sistemas externos:** los datos que pertenecen a otros sistemas (nómina/padrón de agremiados del IPP y facturación de consultas) se consumen a través de **interfaces PHP con implementaciones mock** seleccionables por `.env` (`lib/integracion/`). El portal funciona hoy sin depender de nadie; integrar los sistemas reales es implementar la interfaz y cambiar una línea de configuración. Ver [`INTEGRACION.md`](INTEGRACION.md).
 
 ---
 
@@ -111,6 +113,10 @@ mysql -u root ippuptag < config/schema.sql
 # Migraciones incrementales (en orden)
 mysql -u root ippuptag < config/migracion_p2.sql
 mysql -u root ippuptag < config/migracion_p3.sql
+mysql -u root ippuptag < config/migraciones_v10.sql
+mysql -u root ippuptag < config/migraciones_v11.sql
+mysql -u root ippuptag < config/migraciones_v12.sql
+mysql -u root ippuptag < config/migraciones_v13.sql
 # Datos de ejemplo (agremiados y afiliados ficticios)
 mysql -u root ippuptag < config/datos_prueba.sql
 ```
