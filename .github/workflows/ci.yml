@@ -77,10 +77,28 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
+      # Si los secrets de deploy no están configurados (aún no hay VPS),
+      # se omite el despliegue SIN fallar. Al configurar los secrets en
+      # Settings → Secrets → Actions, el deploy se activa solo.
+      - name: Verificar secrets de deploy
+        id: chk
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          if [ -z "$SSH_HOST" ] || [ -z "$DEPLOY_PATH" ]; then
+            echo "configurado=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Secrets de deploy no configurados (SSH_HOST/DEPLOY_PATH vacíos). Despliegue omitido."
+          else
+            echo "configurado=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout código
+        if: steps.chk.outputs.configurado == 'true'
         uses: actions/checkout@v4
 
       - name: Desplegar vía rsync
+        if: steps.chk.outputs.configurado == 'true'
         uses: burnett01/rsync-deployments@7.0.1
         with:
           # Excluye credenciales y archivos de usuario (ya existen en el VPS)
@@ -100,6 +118,7 @@ jobs:
           remote_key:  ${{ secrets.SSH_KEY }}
 
       - name: Post-deploy — permisos y recarga PHP-FPM
+        if: steps.chk.outputs.configurado == 'true'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host:     ${{ secrets.SSH_HOST }}
