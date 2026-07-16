@@ -88,6 +88,7 @@ mysql -u root -p ippuptag < config/migraciones_v10.sql
 mysql -u root -p ippuptag < config/migraciones_v11.sql
 mysql -u root -p ippuptag < config/migraciones_v12.sql
 mysql -u root -p ippuptag < config/migraciones_v13.sql
+mysql -u root -p ippuptag < config/migraciones_v14.sql
 ```
 
 ### 5. Crear directorio de uploads

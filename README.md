@@ -117,6 +117,7 @@ mysql -u root ippuptag < config/migraciones_v10.sql
 mysql -u root ippuptag < config/migraciones_v11.sql
 mysql -u root ippuptag < config/migraciones_v12.sql
 mysql -u root ippuptag < config/migraciones_v13.sql
+mysql -u root ippuptag < config/migraciones_v14.sql
 # Datos de ejemplo (agremiados y afiliados ficticios)
 mysql -u root ippuptag < config/datos_prueba.sql
 ```
