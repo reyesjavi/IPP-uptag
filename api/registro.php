@@ -24,7 +24,7 @@ if (!verificarRateLimitIP('registro_intento', 5, 60)) {
 $body = json_decode(file_get_contents('php://input'), true) ?: $_POST;
 
 $ci       = strtoupper(trim($body['ci']       ?? ''));
-$password = trim($body['password'] ?? '');
+$password = $body['password'] ?? ''; // sin trim, igual que login.php
 $correo   = trim($body['correo']   ?? '');
 $telefono = trim($body['telefono'] ?? '');
 

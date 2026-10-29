@@ -18,6 +18,18 @@ function requiereLogin(): void {
         header('Location: ' . url('login.php'));
         exit;
     }
+
+    // Cierre por inactividad: no se confía en el GC de PHP, que es probabilístico.
+    $ultima = $_SESSION['ultima_actividad'] ?? time();
+    if (time() - $ultima > SESION_INACTIVIDAD) {
+        registrarLog('sesion_expirada', 'Cierre por inactividad');
+        session_unset();
+        session_destroy();
+        header('Location: ' . url('login.php') . '?expirada=1');
+        exit;
+    }
+    $_SESSION['ultima_actividad'] = time();
+
     sincronizarAfiliado();
 
     // Afiliados con vigencia vencida solo pueden ver vigencia_vencida.php
@@ -178,6 +190,12 @@ function login(string $ci, string $password): array {
         return ['ok'=>false,'msg'=>$msgGenerico];
     }
 
+    // Actualizar hashes antiguos (p. ej. cost 10 de seeds viejos) al cost actual
+    if (password_needs_rehash($usuario['password_hash'], PASSWORD_BCRYPT, ['cost'=>12])) {
+        $pdo->prepare("UPDATE usuarios_registrados SET password_hash=:h WHERE id_usuario=:id")
+            ->execute([':h'=>password_hash($password, PASSWORD_BCRYPT, ['cost'=>12]), ':id'=>$usuario['id_usuario']]);
+    }
+
     // Verificar vigencia anual SOLO para afiliados
     if ($usuario['rol'] === 'afiliado') {
         $vig = $pdo->prepare("
@@ -212,6 +230,7 @@ function login(string $ci, string $password): array {
     $_SESSION['afiliado_id']     = $usuario['id_afiliado'];
     $_SESSION['afiliado_nombre'] = trim(($usuario['nombre']??'').' '.($usuario['apellido']??''));
     $_SESSION['afiliado_cod_pm'] = $usuario['cod_pm'];
+    $_SESSION['ultima_actividad'] = time();
 
     registrarLog('login', 'Inicio de sesión', $usuario['id_usuario']);
 
