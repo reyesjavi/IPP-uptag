@@ -87,6 +87,9 @@ if (!defined('API_REQUEST') && !headers_sent()) {
 }
 
 // ── Configuración segura de sesión ──
+// Segundos sin actividad tras los que requiereLogin() cierra la sesión.
+if (!defined('SESION_INACTIVIDAD')) define('SESION_INACTIVIDAD', 1800);
+
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_httponly', '1');
     ini_set('session.use_only_cookies', '1');

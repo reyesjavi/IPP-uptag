@@ -17,6 +17,7 @@ $error   = '';
 if ($paso === 'solicitar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     verificarCsrf();
     $ci = trim(strtoupper($_POST['ci'] ?? ''));
+    if (ctype_digit($ci)) $ci = 'V-' . $ci; // igual que en login.php
 
     if (empty($ci)) {
         $error = 'Ingresa tu cédula de identidad.';
@@ -33,7 +34,7 @@ if ($paso === 'solicitar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             SELECT u.id_usuario, u.username, a.correo, a.nombre
             FROM usuarios_registrados u
             LEFT JOIN afiliado a ON a.id_afiliado = u.id_afiliado
-            WHERE u.username = :ci AND u.activo = 1
+            WHERE u.username = :ci AND u.activo = 1 AND u.bloqueado = 0
             LIMIT 1
         ");
         $stmt->execute([':ci' => $ci]);
@@ -78,7 +79,7 @@ if ($paso === 'restablecer' && $token) {
         SELECT r.*, u.username
         FROM recuperacion_password r
         JOIN usuarios_registrados u ON u.id_usuario = r.id_usuario
-        WHERE r.token = :token AND r.usado = 0 AND r.expira_en > NOW()
+        WHERE r.token = :token AND r.usado = 0 AND r.expira_en > NOW() AND u.bloqueado = 0
         LIMIT 1
     ");
     $stmt->execute([':token' => hash('sha256', $token)]);
@@ -99,7 +100,7 @@ if ($paso === 'restablecer' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         SELECT r.*, u.username
         FROM recuperacion_password r
         JOIN usuarios_registrados u ON u.id_usuario = r.id_usuario
-        WHERE r.token = :token AND r.usado = 0 AND r.expira_en > NOW()
+        WHERE r.token = :token AND r.usado = 0 AND r.expira_en > NOW() AND u.bloqueado = 0
         LIMIT 1
     ");
     $stmt->execute([':token' => hash('sha256', $tokenPost)]);
@@ -115,7 +116,7 @@ if ($paso === 'restablecer' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $tokenValido = true; $usuarioToken = $reg;
     } else {
         $hash = password_hash($nueva, PASSWORD_BCRYPT, ['cost'=>12]);
-        $pdo->prepare("UPDATE usuarios_registrados SET password_hash=:h, intentos_fallidos=0, bloqueado=0, bloqueado_hasta=NULL WHERE id_usuario=:id")
+        $pdo->prepare("UPDATE usuarios_registrados SET password_hash=:h, intentos_fallidos=0, bloqueado_hasta=NULL WHERE id_usuario=:id")
             ->execute([':h'=>$hash, ':id'=>$reg['id_usuario']]);
         $pdo->prepare("UPDATE recuperacion_password SET usado=1 WHERE id_recuperacion=:id")
             ->execute([':id'=>$reg['id_recuperacion']]);

@@ -7,7 +7,21 @@ require_once __DIR__ . '/lib/totp.php';
 if (estaAutenticado()) { redirigirSegunRol(); }
 
 $paso  = $_GET['paso'] ?? 'login';
+$pasoEnviado = $paso; // el paso 2FA puede cambiar $paso a 'login' para la vista
 $error = '';
+$aviso = isset($_GET['expirada']) ? 'Tu sesión se cerró por inactividad. Vuelve a iniciar sesión.' : '';
+
+// ── Límite de códigos 2FA incorrectos por usuario (ventana de 15 min) ──
+const MAX_FALLOS_2FA = 5;
+function fallos2FARecientes(int $idUsuario): int {
+    $stmt = getDB()->prepare("
+        SELECT COUNT(*) FROM log_actividad
+        WHERE accion = 'login_2fa_fallido' AND id_usuario = :id
+          AND fecha > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+    ");
+    $stmt->execute([':id' => $idUsuario]);
+    return (int)$stmt->fetchColumn();
+}
 
 // ── Paso 2FA: verificar código TOTP ──────────────────────────
 if ($paso === '2fa' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -17,6 +31,12 @@ if ($paso === '2fa' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$pendiente || $pendiente['expira'] < time()) {
         unset($_SESSION['2fa_pendiente']);
         $error = 'La sesión de verificación expiró. Inicia sesión de nuevo.';
+        $paso  = 'login';
+    } elseif (fallos2FARecientes((int)$pendiente['usuario']['id_usuario']) >= MAX_FALLOS_2FA) {
+        // Se cuenta por usuario en la bitácora, no en la sesión: volver a
+        // poner la contraseña no reinicia el contador.
+        unset($_SESSION['2fa_pendiente']);
+        $error = 'Demasiados códigos incorrectos. Espera 15 minutos e inicia sesión de nuevo.';
         $paso  = 'login';
     } else {
         $codigo = preg_replace('/\D/', '', $_POST['codigo_totp'] ?? '');
@@ -33,6 +53,7 @@ if ($paso === '2fa' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['afiliado_nombre'] = trim(($u['nombre'] ?? '') . ' ' . ($u['apellido'] ?? ''));
             $_SESSION['afiliado_cod_pm'] = $u['cod_pm'];
             $_SESSION['vigencia_activa'] = $pendiente['vigencia_activa'];
+            $_SESSION['ultima_actividad'] = time();
 
             $pdo = getDB();
             $pdo->prepare("UPDATE usuarios_registrados SET ultimo_acceso=NOW() WHERE id_usuario=:id")
@@ -41,16 +62,24 @@ if ($paso === '2fa' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
             redirigirSegunRol();
         } else {
-            $error = 'Código incorrecto o expirado. Intenta de nuevo.';
+            registrarLog('login_2fa_fallido', 'Código TOTP incorrecto', (int)$pendiente['usuario']['id_usuario']);
+            $restantes = MAX_FALLOS_2FA - fallos2FARecientes((int)$pendiente['usuario']['id_usuario']);
+            if ($restantes <= 0) {
+                unset($_SESSION['2fa_pendiente']);
+                $error = 'Demasiados códigos incorrectos. Espera 15 minutos e inicia sesión de nuevo.';
+                $paso  = 'login';
+            } else {
+                $error = "Código incorrecto o expirado. Te quedan $restantes intento(s).";
+            }
         }
     }
 }
 
 // ── Paso login: verificar credenciales ───────────────────────
-if ($paso === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($pasoEnviado === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     verificarCsrf();
     $ci       = trim($_POST['ci'] ?? '');
-    $password = trim($_POST['password'] ?? '');
+    $password = $_POST['password'] ?? ''; // sin trim: los espacios son parte de la clave
     if (ctype_digit($ci)) $ci = 'V-' . $ci;
 
     if (empty($ci) || empty($password)) {
@@ -144,6 +173,9 @@ $ciIsCI    = ($ciDisplay === '' || ctype_digit($ciDisplay));
     <?php else: ?>
       <h2>Iniciar Sesión</h2>
       <p>Accede con tu cédula o correo institucional</p>
+      <?php if ($aviso && !$error): ?>
+        <div class="flash-msg flash-err"><i class="ti ti-clock"></i> <?= htmlspecialchars($aviso) ?></div>
+      <?php endif; ?>
       <?php if ($error): ?>
         <div class="flash-msg flash-err"><i class="ti ti-alert-circle"></i> <?= htmlspecialchars($error) ?></div>
       <?php endif; ?>
